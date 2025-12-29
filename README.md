@@ -191,6 +191,104 @@ InferScope is under active development. APIs and internals may change rapidly.
 
 ---
 
+## Temporary Development Docs
+
+During implementation, we generate short-lived summary/checklist documents to track progress. These are stored under [Doc/8_module_implementation/_temp](Doc/8_module_implementation/_temp).
+
+- These files are not part of the product deliverables
+- Safe to delete anytime via the cleanup task below
+
+---
+
+## Outputs Folder
+
+Generated artifacts (analysis reports, traces, scaling summaries) are written to [outputs/](outputs/):
+
+- Traces: `outputs/trace_*.json`, `outputs/demo_llm_trace.json`
+- Reports: `outputs/report_*.md`, `outputs/report_*.html`, `outputs/llm_report.*`
+- Summaries: `outputs/scaling_summary.json`, `outputs/scaling_summary.csv`
+
+Artifacts in the repo root are cleaned by default. To keep the repo tidy:
+
+```bash
+# Example run
+PYTHONPATH=src ./.venv/bin/python demo_llm_inference.py --model Qwen/Qwen3-0.6B-Base \
+  --stress-mode --batch-size 8 --max-new-tokens 128 --output outputs/demo_llm_trace.json
+
+# Analyze
+./.venv/bin/python scripts/inferscope analyze outputs/demo_llm_trace.json --output outputs/llm_report.md
+./.venv/bin/python scripts/inferscope analyze outputs/demo_llm_trace.json --output outputs/llm_report.html --format html
+```
+
+### Prevent committing outputs
+
+We provide a pre-commit hook to block committing files in [outputs/](outputs/) and coverage folders.
+
+Enable it:
+
+```bash
+git config core.hooksPath scripts/git-hooks
+```
+
+Bypass (not recommended):
+
+- Temporarily: INFERSCOPE_ALLOW_OUTPUTS=1 git commit -m "..."
+- Or: git commit --no-verify
+
+### Large-binary protection
+
+The pre-commit hook also blocks large staged binaries (default ≥ 25MB) and common model artifacts (e.g., `.safetensors`, `.bin`, `.pt`, `.onnx`). This keeps the repository lean and avoids accidental commits of heavyweight files.
+
+Bypass (not recommended):
+
+- Temporarily: `INFERSCOPE_ALLOW_LARGE=1 git commit -m "..."`
+- Or: `git commit --no-verify`
+
+Cleanup:
+
+```bash
+make cleanup-temp-docs
+```
+
+## Profiler Demo
+
+Run a quick end-to-end demo that collects CPU events, injects synthetic GPU events (mock), and prints a unified timeline:
+
+```bash
+cd /home/zhiyis/workspace/code/InferScope
+source .venv/bin/activate
+python scripts/run_profiler_demo.py
+make demo
+```
+
+You should see CPU/GPU stats followed by an ordered timeline with timestamps in microseconds.
+
+## Test Coverage
+
+Run unit tests with coverage and generate an HTML report:
+
+```bash
+cd /home/zhiyis/workspace/code/InferScope
+source .venv/bin/activate
+make coverage
+```
+
+The HTML report is written to [coverage/html/index.html](coverage/html/index.html). Note: coverage tracing can interfere with `sys.settrace` hooks; orchestrator tests are skipped under coverage to keep runs reliable.
+
+## Integration Checks
+
+Run the profiler demo and orchestrator unit tests together to verify end-to-end behavior:
+
+```bash
+cd /home/zhiyis/workspace/code/InferScope
+source .venv/bin/activate
+make integration
+```
+
+This runs the demo script and executes the `Profiler` orchestrator tests to ensure CPU/GPU collection and timeline merging work correctly.
+
+---
+
 ## License
 
 Apache-2.0

@@ -1,0 +1,73 @@
+functional_requirements:
+  FR-1:
+    title: "CPU Timeline Collection"
+    description: "System shall collect and timestamp CPU computation events"
+    acceptance_criteria:
+      - "CPU execution traces captured with microsecond-resolution timestamps"
+      - "Per-event CPU timing jitter ≤100 μs under typical load"
+      - "Python function-level profiling available"
+      - "NUMA-aware memory overhead tracked"
+    notes: "Resolution refers to timestamp granularity; accuracy affected by GIL and system scheduling. End-to-end sync error <1% is guaranteed via clock calibration."
+  
+  FR-2:
+    title: "GPU Timeline Collection"
+    description: "System shall collect CUDA/ROCm GPU kernel execution events"
+    acceptance_criteria:
+      - "GPU kernel launches, execution, and completion tracked"
+      - "Host-to-Device (H2D) and Device-to-Host (D2H) copy events captured"
+      - "Memory operations timestamped"
+  
+  FR-3:
+    title: "Timeline Merging & Synchronization"
+    description: "System shall align CPU and GPU events into unified timeline"
+    acceptance_criteria:
+      - "CPU/GPU clock synchronization with <1% error"
+      - "Events ordered by global wall-clock time"
+      - "Concurrent events properly represented"
+  
+  FR-4:
+    title: "Bottleneck Analysis"
+    description: "System shall identify and classify performance bottlenecks"
+    acceptance_criteria:
+      - "CPU-bound vs GPU-bound classification"
+      - "Idle GPU detection (>10% idle time reported)"
+      - "Memory transfer overhead quantified"
+  
+  FR-5:
+    title: "Report Generation"
+    description: "System shall generate human-readable diagnostic reports"
+    acceptance_criteria:
+      - "Markdown and HTML output formats"
+      - "End-to-end latency breakdown by component"
+      - "Actionable suggestions provided"
+  
+  FR-6:
+    title: "CLI Interface"
+    description: "System shall provide command-line interface for users"
+    acceptance_criteria:
+      - "inferscope run <script> command functional"
+      - "Report output path configurable"
+      - "Trace collection toggleable"
+
+non_functional_requirements:
+  NFR-1:
+    title: "Performance"
+    description: "Trace collection overhead <5% of inference latency"
+    metric: "Profiling adds <5ms to typical 50-100ms inference"
+  
+  NFR-2:
+    title: "Single-Node Constraint"
+    description: "No multi-GPU or cluster support in MVP"
+    constraint: "System explicitly rejects multi-GPU workloads"
+  
+  NFR-3:
+    title: "Framework Compatibility"
+    description: "MVP supports PyTorch; TensorFlow deferred"
+    scope: "All examples use PyTorch; extensible API for other frameworks"
+  
+  NFR-4:
+    title: "Platform Support"
+    description: "Linux (x86_64 and ARM) support; NVIDIA CUDA v11.8+"
+    platforms:
+      - "Ubuntu 20.04+"
+      - "CUDA 11.8, 12.0+"

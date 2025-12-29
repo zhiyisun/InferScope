@@ -1,0 +1,140 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "InferScope Trace Schema",
+  "version": "1.0",
+  "type": "object",
+  "properties": {
+    "format_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "trace_metadata": {
+      "type": "object",
+      "properties": {
+        "timestamp_created": {"type": "string", "format": "date-time"},
+        "duration_ms": {"type": "number", "minimum": 0},
+        "cuda_version": {"type": "string"},
+        "python_version": {"type": "string"},
+        "torch_version": {"type": "string"},
+        "gpu_model": {"type": "string"},
+        "hostname": {"type": "string"}
+      },
+      "required": ["timestamp_created", "duration_ms", "cuda_version"]
+    },
+    "system_info": {
+      "type": "object",
+      "properties": {
+        "cpu_count": {"type": "integer", "minimum": 1},
+        "cpu_model": {"type": "string"},
+        "numa_nodes": {"type": "integer", "minimum": 1},
+        "ram_gb": {"type": "number", "minimum": 0},
+        "gpu_count": {"type": "integer", "minimum": 0}
+      }
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "id": {"type": "string"},
+              "type": {"const": "cpu_call"},
+              "name": {"type": "string"},
+              "timestamp_start_us": {"type": "integer"},
+              "timestamp_end_us": {"type": "integer"},
+              "duration_us": {"type": "integer", "minimum": 0},
+              "metadata": {
+                "type": "object",
+                "properties": {
+                  "thread_id": {"type": "integer"},
+                  "cpu_id": {"type": "integer"},
+                  "call_depth": {"type": "integer"},
+                  "parent_scope": {"type": "string"},
+                  "allocations_bytes": {"type": "integer"}
+                }
+              }
+            },
+            "required": ["id", "type", "name", "timestamp_start_us", "timestamp_end_us"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {"type": "string"},
+              "type": {"const": "gpu_kernel"},
+              "name": {"type": "string"},
+              "timestamp_start_us": {"type": "integer"},
+              "timestamp_end_us": {"type": "integer"},
+              "duration_us": {"type": "integer", "minimum": 0},
+              "metadata": {
+                "type": "object",
+                "properties": {
+                  "device_id": {"type": "integer"},
+                  "grid_dim": {"type": "array", "items": {"type": "integer"}, "minItems": 3, "maxItems": 3},
+                  "block_dim": {"type": "array", "items": {"type": "integer"}, "minItems": 3, "maxItems": 3},
+                  "shared_memory_bytes": {"type": "integer"},
+                  "registers_per_thread": {"type": "integer"},
+                  "stream_id": {"type": "integer"},
+                  "occupancy": {"type": "number", "minimum": 0, "maximum": 1}
+                }
+              }
+            },
+            "required": ["id", "type", "name", "timestamp_start_us", "timestamp_end_us"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {"type": "string"},
+              "type": {"const": "h2d_copy"},
+              "name": {"type": "string"},
+              "timestamp_start_us": {"type": "integer"},
+              "timestamp_end_us": {"type": "integer"},
+              "duration_us": {"type": "integer", "minimum": 0},
+              "metadata": {
+                "type": "object",
+                "properties": {
+                  "device_id": {"type": "integer"},
+                  "bytes": {"type": "integer", "minimum": 0},
+                  "kind": {"enum": ["pageable", "pinned"]},
+                  "throughput_gbps": {"type": "number", "minimum": 0}
+                }
+              }
+            },
+            "required": ["id", "type", "name", "timestamp_start_us", "timestamp_end_us"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {"type": "string"},
+              "type": {"const": "instant"},
+              "name": {"type": "string"},
+              "timestamp_us": {"type": "integer"},
+              "metadata": {"type": "object"}
+            },
+            "required": ["id", "type", "name", "timestamp_us"]
+          }
+        ]
+      }
+    },
+    "relationships": {
+      "type": "object",
+      "properties": {
+        "scopes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {"type": "string"},
+              "name": {"type": "string"},
+              "parent_id": {"type": ["string", "null"]},
+              "child_ids": {"type": "array", "items": {"type": "string"}},
+              "event_range": {"type": "array", "items": {"type": "integer"}, "minItems": 2, "maxItems": 2}
+            },
+            "required": ["id", "name", "parent_id", "child_ids", "event_range"]
+          }
+        }
+      }
+    }
+  },
+  "required": ["format_version", "trace_metadata", "events"]
+}

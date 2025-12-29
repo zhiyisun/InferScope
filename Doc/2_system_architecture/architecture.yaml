@@ -1,0 +1,96 @@
+components:
+  cpu_collector:
+    responsibility: "Capture Python function calls and CPU time"
+    technology: "sys.settrace(), perf, /proc/self/stat"
+    interfaces:
+      - "Trace buffer (write-only)"
+    concurrency_model: "Per-thread TLS buffer, lock-free"
+    
+  gpu_collector:
+    responsibility: "Capture CUDA kernels, memory transfers, GPU execution"
+    technology: "NVIDIA CUPTI (Callback & Activity API)"
+    interfaces:
+      - "Trace buffer (write-only)"
+    concurrency_model: "Main thread only; async collection via callbacks"
+    
+  memory_collector:
+    responsibility: "Track memory pressure, NUMA overhead"
+    technology: "Linux perf, /proc/self/numa_stat"
+    interfaces:
+      - "Trace buffer (write-only)"
+    concurrency_model: "Periodic sampling, lock-free"
+    
+  trace_buffer:
+    responsibility: "Store events without blocking collectors"
+    technology: "In-memory ring buffer (circular queue)"
+    size_default_mb: 100
+    overflow_behavior: "Wrap oldest events"
+    interfaces:
+      - "Collectors (write)"
+      - "Timeline merger (read)"
+    
+  timeline_merger:
+    responsibility: "Synchronize CPU/GPU clocks, order events globally"
+    technology: "CUDA event-based clock calibration + rdtsc"
+    accuracy: "<1% clock error"
+    interfaces:
+      - "Trace buffer (read)"
+      - "Analyzer engine (write unified timeline)"
+    concurrency_model: "Single-threaded, post-collection"
+    
+  analyzer_engine:
+    responsibility: "Detect and classify bottlenecks"
+    rules:
+      - "GPU idle detection (>10% idle → CPU-bound)"
+      - "PCIe saturation (H2D+D2H throughput)"
+      - "CPU threading contention"
+      - "Memory pressure"
+    interfaces:
+      - "Unified timeline (read)"
+      - "Report generator (write analysis)"
+    
+  report_generator:
+    responsibility: "Create human-readable reports"
+    formats:
+      - "Markdown (default)"
+      - "HTML (optional)"
+      - "JSON (machine-readable)"
+    interfaces:
+      - "Analysis results (read)"
+      - "File output (write)"
+
+data_formats:
+  trace_event:
+    schema:
+      event_type: string  # "cpu_call", "gpu_kernel", "h2d_copy", etc.
+      name: string
+      start_us: integer   # microseconds since epoch or offset
+      end_us: integer
+      metadata: object    # device_id, grid_dim, etc.
+    
+  report:
+    sections:
+      - "Summary (end-to-end latency)"
+      - "Timeline breakdown (percentages)"
+      - "Bottleneck diagnosis"
+      - "Actionable suggestions"
+
+external_interfaces:
+  python_api:
+    - "scope(name) context manager"
+    - "mark_event(name) for manual annotations"
+  
+  cli:
+    - "inferscope run <script> --report report.md"
+    - "inferscope analyze <trace.json>"
+    - "inferscope config show"
+  
+  config:
+    sources:
+      - "CLI arguments (highest priority)"
+      - "Environment variables"
+      - ".inferscope.yaml (lowest priority)"
+    example_vars:
+      - "INFERSCOPE_ENABLE=1"
+      - "INFERSCOPE_LOG_LEVEL=debug"
+      - "INFERSCOPE_TRACE_SIZE_MB=200"

@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# InferScope pre-commit hook
+# Blocks committing generated artifacts under outputs/ and coverage/.
+# Also blocks large staged binaries and certain model artifacts.
+# Bypass with INFERSCOPE_ALLOW_OUTPUTS=1, INFERSCOPE_ALLOW_LARGE=1, or --no-verify on git commit.
+
+ALLOW_OUTPUTS=${INFERSCOPE_ALLOW_OUTPUTS:-}
+ALLOW_LARGE=${INFERSCOPE_ALLOW_LARGE:-}
+if [[ -n "$ALLOW_OUTPUTS" || -n "$ALLOW_LARGE" ]]; then
+  echo "[pre-commit] Bypass enabled (ALLOW_OUTPUTS=$ALLOW_OUTPUTS, ALLOW_LARGE=$ALLOW_LARGE)"
+  exit 0
+fi
+
+# Get staged changes with status codes (A,M,D,R,C etc.)
+mapfile -t entries < <(git diff --cached --name-status)
+
+blocklist=("outputs/" "coverage/" "coverage-html/")
+violations=()
+
+# Large-file policy (size threshold in bytes) and blocked extensions
+SIZE_THRESHOLD=$((25 * 1024 * 1024))  # 25MB
+ext_blocklist=(".safetensors" ".bin" ".pt" ".onnx")
+
+# Helper: get staged blob size for a path
+get_staged_size() {
+  local path="$1"
+  local line
+  line=$(git ls-files -s -- "$path" || true)
+  if [[ -z "$line" ]]; then
+    echo 0
+    return 0
+  fi
+  # Format: <mode> <object> <stage>\t<path>
+  local obj
+  obj=$(awk '{print $2}' <<< "$line")
+  if [[ -z "$obj" ]]; then
+    echo 0
+    return 0
+  fi
+  git cat-file -s "$obj" 2>/dev/null || echo 0
+}
+
+for line in "${entries[@]}"; do
+  # Parse status and file path; handle renames/copies where the new path is the last field
+  status=$(awk '{print $1}' <<< "$line")
+  # If status begins with R or C, take the last field as path; else second field
+  if [[ "$status" =~ ^[RC] ]]; then
+    path=$(awk '{print $NF}' <<< "$line")
+  else
+    path=$(awk '{print $2}' <<< "$line")
+  fi
+  # Allow deletions to clean up tracked files
+  if [[ "$status" == "D" ]]; then
+    continue
+  fi
+  for prefix in "${blocklist[@]}"; do
+    if [[ "$path" == ${prefix}* ]]; then
+      violations+=("$status $path (blocked path)")
+      break
+    fi
+  done
+
+  # Skip further checks if already path-blocked
+  [[ "${#violations[@]}" -gt 0 && "${violations[-1]}" == *"$path"* ]] && continue
+
+  # Only check added/modified files for size/extension
+  if [[ "$status" == "A" || "$status" == "M" || "$status" =~ ^[RC] ]]; then
+    # Block certain extensions
+    for ext in "${ext_blocklist[@]}"; do
+      if [[ "$path" == *"$ext" ]]; then
+        violations+=("$status $path (blocked extension $ext)")
+        break
+      fi
+    done
+    # If extension blocked, skip size check
+    [[ "${#violations[@]}" -gt 0 && "${violations[-1]}" == *"$path"* ]] && continue
+    # Size check on staged blob
+    size=$(get_staged_size "$path")
+    if [[ "$size" -ge "$SIZE_THRESHOLD" ]]; then
+      violations+=("$status $path (size ${size} bytes >= threshold ${SIZE_THRESHOLD})")
+    fi
+  fi
+done
+
+if (( ${#violations[@]} > 0 )); then
+  echo "[pre-commit] The following staged paths are blocked:"
+  for v in "${violations[@]}"; do
+    echo "  $v"
+  done
+  cat <<'MSG'
+
+Reasons:
+  - outputs/ and coverage/ should not be committed.
+  - Large binaries and certain model files inflate repo size and are not source code.
+Fix:
+  - Unstage files: git restore --staged <path>
+  - Remove tracked outputs: git rm --cached <path>
+  - Add patterns to .gitignore if missing.
+
+Bypass (not recommended):
+  - Temporarily: INFERSCOPE_ALLOW_OUTPUTS=1 or INFERSCOPE_ALLOW_LARGE=1 git commit -m "..."
+  - Or: git commit --no-verify
+MSG
+  exit 1
+fi
+
+exit 0

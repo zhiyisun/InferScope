@@ -1,4 +1,24 @@
-# Byte-compiled / optimized / DLL files
+# Python / VS Code
+__pycache__/
+*.pyc
+
+# Virtual environments
+.venv/
+
+# Generated analysis artifacts
+outputs/
+
+# Coverage outputs
+coverage/
+coverage-html/
+.coverage
+.coverage.*
+
+# Pytest cache
+.pytest_cache/
+
+# Notebooks checkpoints
+.ipynb_checkpoints/# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
 *$py.class

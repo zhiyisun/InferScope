@@ -1,0 +1,144 @@
+python_api:
+  scope:
+    description: "Context manager for marking inference regions"
+    signature: "scope(name: str)"
+    methods:
+      - name: "__enter__"
+        returns: "scope"
+      - name: "__exit__"
+        args: ["exc_type", "exc_val", "exc_tb"]
+        returns: "None"
+    output_events:
+      - "scope_enter"
+      - "scope_exit"
+    example: |
+      with scope("inference"):
+          output = model.forward(inputs)
+  
+  mark_event:
+    description: "Instant event marker with optional metadata"
+    signature: "mark_event(name: str, metadata: Optional[Dict]) -> None"
+    output_events:
+      - "instant"
+    example: |
+      mark_event("tokenization_complete", metadata={"tokens": 1024})
+
+cli_interface:
+  run:
+    description: "Execute script with InferScope tracing"
+    signature: "inferscope run [OPTIONS] SCRIPT [ARGS...]"
+    options:
+      --report: "Output report file path (default: report.md)"
+      --log-level: "Logging verbosity: debug, info, warn (default: info)"
+      --trace-size-mb: "Ring buffer size in MB (default: 100)"
+    behavior: |
+      1. Execute script with INFERSCOPE_ENABLED=1
+      2. Collect traces during execution
+      3. Generate report on completion
+      4. Exit with script's exit code
+  
+  analyze:
+    description: "Analyze existing trace file"
+    signature: "inferscope analyze TRACE_FILE [OPTIONS]"
+    options:
+      --output: "Output report file path (default: report.md)"
+      --rules-file: "Custom bottleneck rules YAML"
+    behavior: |
+      1. Load trace from TRACE_FILE
+      2. Run analyzer engine
+      3. Generate report
+
+internal_module_apis:
+  cpu_collector:
+    output_format: "JSON event stream"
+    event_schema:
+      event_type: "string (cpu_call, cpu_syscall, memory_alloc)"
+      name: "string"
+      start_us: "integer"
+      end_us: "integer"
+      thread_id: "integer"
+      cpu_id: "integer"
+    thread_safety: "Per-thread lock-free buffer"
+  
+  gpu_collector:
+    output_format: "JSON event stream"
+    event_schema:
+      event_type: "string (gpu_kernel, h2d_copy, d2h_copy)"
+      name: "string"
+      start_us: "integer"
+      end_us: "integer"
+      device_id: "integer"
+      grid_dim: "array[3]"
+      block_dim: "array[3]"
+      bytes: "integer (for memory copies)"
+    thread_safety: "Main thread only; async callbacks"
+  
+  trace_buffer:
+    interface:
+      enqueue: "(event: Dict) -> bool"
+      read_all: "() -> List[Dict]"
+      clear: "() -> None"
+    capacity: "Circular ring buffer, configurable size"
+    overflow_behavior: "Wrap oldest events on overflow"
+  
+  timeline_merger:
+    input: "Unsorted events with mixed timestamps"
+    output: "Sorted events with unified global timestamps"
+    clock_sync_method: "CUDA event + CPU rdtsc calibration"
+    accuracy_target: "<1% error"
+    methods:
+      synchronize_clocks: "() -> None"
+      get_sorted_events: "() -> List[Dict]"
+  
+  analyzer_engine:
+    input: "Sorted unified timeline"
+    output: "Bottleneck classification and suggestions"
+    methods:
+      analyze: "() -> Dict[str, Any]"
+    rules:
+      - "GPU idle detection (>10%)"
+      - "PCIe saturation (H2D+D2H throughput)"
+      - "CPU threading contention"
+      - "Memory pressure"
+  
+  report_generator:
+    input: "Analysis results + timeline"
+    output_formats:
+      - "Markdown"
+      - "HTML"
+      - "JSON"
+    methods:
+      to_markdown: "() -> str"
+      to_html: "() -> str"
+      to_json: "() -> Dict"
+
+configuration:
+  environment_variables:
+    INFERSCOPE_ENABLED: "Enable/disable tracing (1/0)"
+    INFERSCOPE_LOG_LEVEL: "debug, info, warn, error"
+    INFERSCOPE_TRACE_SIZE_MB: "Ring buffer size (default: 100)"
+    INFERSCOPE_SYNC_ERROR_MARGIN_US: "Clock sync uncertainty (default: 1000)"
+  
+  config_file_format: "YAML (.inferscope.yaml)"
+  precedence: "CLI args > env vars > config file > defaults"
+
+error_handling:
+  cuda_unavailable:
+    collector_response: "Skip GPU events, continue with CPU"
+    user_impact: "CPU-only analysis"
+    error_level: "warn"
+  
+  cupti_load_fails:
+    collector_response: "Fallback to NVIDIA profiler if available"
+    user_impact: "Reduced GPU visibility"
+    error_level: "warn"
+  
+  trace_buffer_overflow:
+    collector_response: "Wrap oldest events; log warning"
+    user_impact: "Possible data loss"
+    error_level: "warn"
+  
+  clock_sync_fails:
+    collector_response: "Use conservative margin; annotate in report"
+    user_impact: "Timestamp uncertainty in results"
+    error_level: "warn"
