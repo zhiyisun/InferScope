@@ -1,13 +1,15 @@
-.PHONY: help docs clean test demo
+.PHONY: help docs clean clean-docs distclean test demo
 
 help:
 	@echo "InferScope Development Makefile"
 	@echo ""
 	@echo "Available targets:"
-	@echo "  make docs  - Generate all documentation from YAML sources"
-	@echo "  make clean - Remove build artifacts"
-	@echo "  make test  - Run all unit tests with coverage report"
-	@echo "  make demo  - Run the profiler demo script"
+	@echo "  make docs       - Generate all documentation from YAML sources"
+	@echo "  make clean      - Remove build artifacts and temporary files"
+	@echo "  make clean-docs - Remove auto-generated documentation (PRD.md, SAD.md, ICD.md)"
+	@echo "  make distclean   - Remove all generated artifacts (build + docs)"
+	@echo "  make test       - Run all unit tests with coverage report"
+	@echo "  make demo       - Run the profiler demo script"
 
 docs:
 	@echo "Generating documentation from YAML sources..."
@@ -20,6 +22,19 @@ clean:
 	@find . -type f -name "*.pyc" -delete 2>/dev/null || true
 	@rm -rf docs/_temp 2>/dev/null || true
 	@echo "✓ Clean complete"
+
+clean-docs:
+	@echo "Removing auto-generated documentation..."
+	@rm -f docs/1_requirements/PRD.md
+	@rm -f docs/2_system_architecture/SAD.md
+	@rm -f docs/3_module_design/ICD.md
+	@echo "✓ Auto-generated docs removed (regenerate with: make docs)"
+
+distclean: clean clean-docs
+	@echo "Removing all generated artifacts..."
+	@rm -rf coverage/
+	@rm -rf outputs/
+	@echo "✓ Full distclean complete"
 
 test:
 	@echo "Running unit tests with coverage..."
