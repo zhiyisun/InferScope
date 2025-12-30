@@ -265,25 +265,9 @@ Doc/
 │ ├── system_tests.yaml
 │ └── edge_cases.yaml
 │
-├── 7_coding_standards/
-│ ├── coding_standards.md
-│ └── repo_structure.md
-│
-├── 8_system_integration/
-│ ├── integration_plan.md
-│ ├── deployment_architecture.md
-│ └── integration.yaml
-│
-├── 9_system_test/
-│ ├── system_test_spec.md
-│ ├── performance_benchmarks.md
-│ └── acceptance_criteria.yaml
-│
-└── 10_operations/
-├── runbooks.md
-├── alert_definitions.md
-├── logging_metrics.md
-└── failure_patterns.md
+└── 7_coding_standards/
+  ├── coding_standards.md
+  └── repo_structure.md
 
 
 

@@ -49,17 +49,6 @@ The following files are **manually maintained** (not auto-generated):
 - `docs/7_coding_standards/coding_standards.md` - Python/C++ style guide
 - `docs/7_coding_standards/repo_structure.md` - Repository organization
 
-### Integration
-- `docs/8_system_integration/integration_plan.md` - Phase-by-phase roadmap
-- `docs/8_system_integration/deployment_architecture.md` - Runtime topology
-- `docs/8_system_integration/integration_strategy.md` - Component integration details
-
-### System Testing
-- `docs/9_system_test/system_test_spec.md` - End-to-end test scenarios
-
-### Operations
-- `docs/10_operations/runbooks.md` - Troubleshooting and deployment
-
 ## Workflow
 
 ### Updating Requirements

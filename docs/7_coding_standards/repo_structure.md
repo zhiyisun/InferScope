@@ -34,17 +34,9 @@ InferScope/
 │   │   └── test_strategy.md
 │   ├── 6_test_cases/
 │   │   └── unit_tests.md
-│   ├── 7_coding_standards/
-│   │   ├── coding_standards.md
-│   │   └── repo_structure.md          # This file
-│   ├── 8_system_integration/
-│   │   ├── integration_plan.md
-│   │   ├── integration_strategy.md
-│   │   └── deployment_architecture.md
-│   ├── 9_system_test/
-│   │   └── system_test_spec.md
-│   └── 10_operations/
-│       └── runbooks.md
+│   └── 7_coding_standards/
+│       ├── coding_standards.md
+│       └── repo_structure.md          # This file
 │
 ├── src/
 │   └── inferscope/                    # Main Python package
