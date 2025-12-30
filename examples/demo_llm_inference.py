@@ -19,7 +19,7 @@ import json
 import argparse
 
 # Ensure src/ is importable when running from workspace
-WORKSPACE_ROOT = os.path.dirname(os.path.abspath(__file__))
+WORKSPACE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC_PATH = os.path.join(WORKSPACE_ROOT, 'src')
 if SRC_PATH not in sys.path:
     sys.path.insert(0, SRC_PATH)

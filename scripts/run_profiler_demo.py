@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Run a simple end-to-end profiling demo using Profiler.
-Collects CPU events from a small workload and injects a synthetic GPU event,
+Collects real CPU and GPU events from a small workload (or CPU-only if CUDA unavailable),
 then prints a unified, synchronized timeline.
 """
 
@@ -48,14 +48,11 @@ def main() -> None:
     profiler = Profiler(buf)
 
     print("Starting profiler...")
+    print("(GPU profiling will use CUDA/CUPTI if available; otherwise CPU-only mode)\n")
     profiler.start()
 
     # CPU activity
     result = small_workload()
-
-    # Inject synthetic GPU events (mock/stub)
-    profiler.gpu._inject_kernel_event(name="demo_kernel", duration_us=200, stream_id=0)
-    profiler.gpu._inject_copy_event(name="input_copy", bytes_transferred=256 * 1024, direction='h2d')
 
     profiler.stop()
     stats = profiler.get_stats()

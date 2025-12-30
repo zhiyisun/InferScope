@@ -191,6 +191,48 @@ InferScope is under active development. APIs and internals may change rapidly.
 
 ---
 
+## Getting Started
+
+### Prerequisites
+
+- Python 3.10 or later
+- CUDA-capable GPU (optional, but recommended for GPU profiling)
+- Linux environment (tested on Ubuntu/Debian)
+
+### Installation
+
+1. **Clone the repository:**
+
+```bash
+git clone <repository-url>
+cd InferScope
+```
+
+2. **Set up Python virtual environment with uv:**
+
+```bash
+uv venv
+source .venv/bin/activate
+```
+
+3. **Install dependencies:**
+
+```bash
+uv pip install -r requirements.txt
+```
+
+4. **Verify installation:**
+
+Run the quick function verification demo to confirm everything is set up correctly:
+
+```bash
+python scripts/run_profiler_demo.py
+```
+
+You should see CPU/GPU profiling statistics and a unified timeline output.
+
+---
+
 ## Outputs Folder
 
 Generated artifacts (analysis reports, traces, scaling summaries) are written to [outputs/](outputs/):
@@ -199,97 +241,125 @@ Generated artifacts (analysis reports, traces, scaling summaries) are written to
 - Reports: `outputs/report_*.md`, `outputs/report_*.html`, `outputs/llm_report.*`
 - Summaries: `outputs/scaling_summary.json`, `outputs/scaling_summary.csv`
 
-Artifacts in the repo root are cleaned by default. To keep the repo tidy:
-
-```bash
-# Example run
-PYTHONPATH=src ./.venv/bin/python demo_llm_inference.py --model Qwen/Qwen3-0.6B-Base \
-  --stress-mode --batch-size 8 --max-new-tokens 128 --output outputs/demo_llm_trace.json
-
-# Analyze
-./.venv/bin/python scripts/inferscope analyze outputs/demo_llm_trace.json --output outputs/llm_report.md
-./.venv/bin/python scripts/inferscope analyze outputs/demo_llm_trace.json --output outputs/llm_report.html --format html
-```
-
-### Prevent committing outputs
-
-We provide a pre-commit hook to block committing files in [outputs/](outputs/) and coverage folders.
-
-Enable it:
-
-```bash
-git config core.hooksPath scripts/git-hooks
-```
-
-Bypass (not recommended):
-
-- Temporarily: INFERSCOPE_ALLOW_OUTPUTS=1 git commit -m "..."
-- Or: git commit --no-verify
-
-### Large-binary protection
-
-The pre-commit hook also blocks large staged binaries (default ≥ 25MB) and common model artifacts (e.g., `.safetensors`, `.bin`, `.pt`, `.onnx`). This keeps the repository lean and avoids accidental commits of heavyweight files.
-
-Bypass (not recommended):
-
-- Temporarily: `INFERSCOPE_ALLOW_LARGE=1 git commit -m "..."`
-- Or: `git commit --no-verify`
-
-Cleanup:
-
-```bash
-make cleanup-temp-docs
-```
-
 ## Profiler Demo
 
-Run a quick end-to-end demo that collects CPU events, injects synthetic GPU events (mock), and prints a unified timeline:
+### Quick Function Verification
+
+Run a quick end-to-end demo that collects CPU and GPU events and prints a unified timeline:
 
 ```bash
-cd /home/zhiyis/workspace/code/InferScope
 source .venv/bin/activate
 python scripts/run_profiler_demo.py
+```
+
+Or use the make target:
+
+```bash
 make demo
 ```
 
-You should see CPU/GPU stats followed by an ordered timeline with timestamps in microseconds.
+**Expected Output:**
 
-## Test Coverage
+You'll see CPU/GPU statistics followed by a unified timeline showing all captured events with microsecond timestamps:
 
-Run unit tests with coverage and generate an HTML report:
+```
+Starting profiler...
+(GPU profiling will use CUDA/CUPTI if available; otherwise CPU-only mode)
 
-```bash
-cd /home/zhiyis/workspace/code/InferScope
-source .venv/bin/activate
-make coverage
+CPU stats: {'state': 'FINALIZED', 'total_events_captured': 22, ...}
+GPU stats: {'state': 'FINALIZED', 'cupti_available': True, 'event_count': 0, ...}
+
+Unified timeline (ts_us type name thread/stream):
+1231739834082 cpu_call get tid=246575807156128 stream=None
+1231739834141 cpu_call encode tid=246575807156128 stream=None
+1231739834155 cpu_return encode tid=246575807156128 stream=None
+...
+
+Demo complete. Workload result: 30
 ```
 
-The HTML report is written to [coverage/html/index.html](coverage/html/index.html). Note: coverage tracing can interfere with `sys.settrace` hooks; orchestrator tests are skipped under coverage to keep runs reliable.
+This verifies that InferScope can successfully collect and merge CPU/GPU events into a synchronized timeline.
 
-## Integration Checks
+### Real LLM Inference Demo
 
-Run the profiler demo and orchestrator unit tests together to verify end-to-end behavior:
+Run InferScope on a real LLM inference workload (using Hugging Face Transformers):
 
 ```bash
-cd /home/zhiyis/workspace/code/InferScope
 source .venv/bin/activate
-make integration
+python examples/demo_llm_inference.py --model Qwen/Qwen3-0.6B-Base --max-new-tokens 128 --batch-size 1 --stress-mode
 ```
 
-This runs the demo script and executes the `Profiler` orchestrator tests to ensure CPU/GPU collection and timeline merging work correctly.
+**What This Demo Does:**
+
+- Loads a real LLM model (Qwen3 0.6B or fallback to DistilGPT2)
+- Profiles complete inference pipeline: tokenization → H2D copy → GPU inference → D2H copy → decoding
+- Captures CPU function calls, GPU kernels, and memory transfers
+- Saves detailed trace to `outputs/demo_llm_trace.json`
+
+**Expected Output:**
+
+```
+======================================================================
+InferScope Demo: Real LLM Inference (HF Transformers)
+======================================================================
+[INFO] TORCH_AVAILABLE=True | TRANSFORMERS_AVAILABLE=True
+[INFO] Requested model: Qwen/Qwen3-0.6B-Base
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+[INFO] Trace saved: outputs/demo_llm_trace.json
+[INFO] Sample output: Deep learning systems deploy attention mechanisms...
+
+Next:
+  - Analyze (MD): python scripts/inferscope analyze outputs/demo_llm_trace.json --output outputs/llm_report.md
+  - Analyze (HTML): python scripts/inferscope analyze outputs/demo_llm_trace.json --output outputs/llm_report.html --format html
+```
+
+The trace file contains hundreds of thousands of profiling events. To analyze it and generate human-readable reports:
+
+**Analyze the Trace:**
+
+```bash
+# Generate Markdown report
+python scripts/inferscope analyze outputs/demo_llm_trace.json --output outputs/llm_report.md
+
+# Generate HTML report (interactive)
+python scripts/inferscope analyze outputs/demo_llm_trace.json --output outputs/llm_report.html --format html
+```
+
+**What You'll Find in the Report:**
+
+- **End-to-end latency breakdown**: Total inference time with percentage breakdown by category
+- **Time spent analysis**: CPU preprocessing, GPU compute, H2D/D2H memory transfers
+- **Bottleneck identification**: Determines if workload is CPU-bound, GPU-bound, or memory-bound
+- **Timeline breakdown table**: Detailed breakdown showing duration and percentage for each category
+- **Actionable optimization suggestions**: Prioritized recommendations with estimated improvement percentages
+
+**Example Report Output:**
+
+```
+## Summary
+End-to-end latency: 18632.5 ms
+
+### Breakdown
+- CPU time: 3.8 ms (0.0%)
+- GPU time: 18622.9 ms (99.9%)
+- H2D copy: 0.5 ms (0.0%)
+- D2H copy: 0.3 ms (0.0%)
+
+## Diagnosis
+Bottleneck: GPU BOUND
+Primary cause: GPU compute
+Confidence: 60%
+
+## Suggestions
+1. Optimize GPU kernels (high priority) - Est. improvement: 25%
+2. Use mixed precision (FP16) (medium priority) - Est. improvement: 30%
+```
 
 ---
 
 ## License
 
 Apache-2.0
-
----
-
-## Author
-
-Zhiyi Sun  
-System / AI Infrastructure Engineer
 
 ---
 

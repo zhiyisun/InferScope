@@ -251,7 +251,6 @@ class MockTraceBuffer:
 ### 1. Setup Virtual Environment
 
 ```bash
-cd /home/zhiyis/workspace/code/InferScope
 source .venv/bin/activate
 ```
 

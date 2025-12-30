@@ -111,11 +111,16 @@ class ReportGenerator:
         confidence = bottleneck.get('confidence', 0.0)
         evidence = bottleneck.get('evidence', [])
         
+        # Format type: cpu_bound -> CPU Bound, gpu_bound -> GPU Bound
+        formatted_type = btype.replace('_', ' ').upper() if btype in ('cpu_bound', 'gpu_bound') else btype.replace('_', ' ').title()
+        # Format cause: gpu_compute -> GPU compute, cpu_preprocessing -> CPU preprocessing
+        formatted_cause = cause.replace('gpu_', 'GPU ').replace('cpu_', 'CPU ').replace('_', ' ')
+        
         lines = [
             "## Diagnosis",
             "",
-            f"**Bottleneck:** {btype.replace('_', ' ').title()}",
-            f"**Primary cause:** {cause.replace('_', ' ')}",
+            f"**Bottleneck:** {formatted_type}",
+            f"**Primary cause:** {formatted_cause}",
             f"**Confidence:** {confidence * 100:.0f}%",
             "",
         ]
@@ -145,7 +150,10 @@ class ReportGenerator:
             cat = item.get('category', 'unknown')
             duration_ms = item.get('duration_us', 0) / 1000
             pct = item.get('percentage', 0.0)
-            lines.append(f"| {cat.replace('_', ' ').title()} | {duration_ms:.1f} | {pct:.1f}% |")
+            # Format category: gpu_compute -> GPU Compute, cpu_preprocessing -> CPU Preprocessing
+            formatted_cat = cat.replace('gpu_', 'GPU ').replace('cpu_', 'CPU ').replace('h2d_', 'H2D ').replace('d2h_', 'D2H ').replace('_', ' ').title()
+            formatted_cat = formatted_cat.replace('Gpu ', 'GPU ').replace('Cpu ', 'CPU ').replace('H2d ', 'H2D ').replace('D2h ', 'D2H ')
+            lines.append(f"| {formatted_cat} | {duration_ms:.1f} | {pct:.1f}% |")
         
         lines.append("")
         return lines
@@ -177,6 +185,107 @@ class ReportGenerator:
         
         return lines
     
+    def _html_summary(self, summary: Dict[str, Any]) -> str:
+        """Generate HTML summary section."""
+        end_to_end = summary.get('end_to_end_latency_us', 0)
+        cpu_time = summary.get('total_cpu_time_us', 0)
+        gpu_time = summary.get('total_gpu_time_us', 0)
+        h2d_time = summary.get('total_h2d_us', 0)
+        d2h_time = summary.get('total_d2h_us', 0)
+        
+        return f"""
+        <h2>Summary</h2>
+        <p><strong>End-to-end latency:</strong> {end_to_end / 1000:.1f} ms</p>
+        <h3>Breakdown</h3>
+        <ul>
+            <li>CPU time: {cpu_time / 1000:.1f} ms ({100 * cpu_time / end_to_end if end_to_end else 0:.1f}%)</li>
+            <li>GPU time: {gpu_time / 1000:.1f} ms ({100 * gpu_time / end_to_end if end_to_end else 0:.1f}%)</li>
+            <li>H2D copy: {h2d_time / 1000:.1f} ms ({100 * h2d_time / end_to_end if end_to_end else 0:.1f}%)</li>
+            <li>D2H copy: {d2h_time / 1000:.1f} ms ({100 * d2h_time / end_to_end if end_to_end else 0:.1f}%)</li>
+        </ul>
+        """
+    
+    def _html_bottleneck(self, bottleneck: Dict[str, Any]) -> str:
+        """Generate HTML bottleneck section."""
+        btype = bottleneck.get('type', 'unknown')
+        cause = bottleneck.get('primary_cause', 'unknown')
+        confidence = bottleneck.get('confidence', 0.0)
+        evidence = bottleneck.get('evidence', [])
+        
+        formatted_type = btype.replace('_', ' ').upper() if btype in ('cpu_bound', 'gpu_bound') else btype.replace('_', ' ').title()
+        formatted_cause = cause.replace('gpu_', 'GPU ').replace('cpu_', 'CPU ').replace('_', ' ')
+        
+        evidence_html = ''
+        if evidence:
+            evidence_items = ''.join([f'<li>{ev}</li>' for ev in evidence])
+            evidence_html = f'<div class="evidence"><strong>Evidence:</strong><ul>{evidence_items}</ul></div>'
+        
+        return f"""
+        <h2>Diagnosis</h2>
+        <p><strong>Bottleneck:</strong> {formatted_type}</p>
+        <p><strong>Primary cause:</strong> {formatted_cause}</p>
+        <p><strong>Confidence:</strong> {confidence * 100:.0f}%</p>
+        {evidence_html}
+        """
+    
+    def _html_breakdown(self, breakdown: List[Dict[str, Any]]) -> str:
+        """Generate HTML timeline breakdown table."""
+        if not breakdown:
+            return ''
+        
+        rows = []
+        for item in breakdown:
+            cat = item.get('category', 'unknown')
+            duration_ms = item.get('duration_us', 0) / 1000
+            pct = item.get('percentage', 0.0)
+            formatted_cat = cat.replace('gpu_', 'GPU ').replace('cpu_', 'CPU ').replace('h2d_', 'H2D ').replace('d2h_', 'D2H ').replace('_', ' ').title()
+            formatted_cat = formatted_cat.replace('Gpu ', 'GPU ').replace('Cpu ', 'CPU ').replace('H2d ', 'H2D ').replace('D2h ', 'D2H ')
+            rows.append(f'<tr><td>{formatted_cat}</td><td>{duration_ms:.1f}</td><td>{pct:.1f}%</td></tr>')
+        
+        return f"""
+        <h2>Timeline Breakdown</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Category</th>
+                    <th>Duration (ms)</th>
+                    <th>Percentage</th>
+                </tr>
+            </thead>
+            <tbody>
+                {''.join(rows)}
+            </tbody>
+        </table>
+        """
+    
+    def _html_suggestions(self, suggestions: List[Dict[str, Any]]) -> str:
+        """Generate HTML suggestions section."""
+        if not suggestions:
+            return ''
+        
+        items = []
+        for i, sug in enumerate(suggestions, 1):
+            priority = sug.get('priority', 'medium')
+            action = sug.get('action', 'No action')
+            rationale = sug.get('rationale', '')
+            impact = sug.get('estimated_improvement_percent', 0)
+            
+            priority_class = f'priority-{priority}'
+            
+            rationale_html = f'<p><strong>Rationale:</strong> {rationale}</p>' if rationale else ''
+            impact_html = f'<p><strong>Estimated improvement:</strong> {impact}%</p>' if impact > 0 else ''
+            
+            items.append(f"""
+            <h3>{i}. {action} <span class="{priority_class}">({priority} priority)</span></h3>
+            {rationale_html}
+            {impact_html}
+            """)
+        
+        return f"""
+        <h2>Suggestions</h2>
+        {''.join(items)}
+        """
+    
     def to_html(self) -> str:
         """
         Generate HTML report.
@@ -184,15 +293,31 @@ class ReportGenerator:
         Returns:
             HTML-formatted report string
         """
-        # Simple HTML wrapper around Markdown content
-        markdown_body = self.to_markdown()
+        # Convert markdown sections to HTML
+        summary = self.analysis.get('summary', {})
+        bottleneck = self.analysis.get('bottleneck', {})
+        breakdown = self.analysis.get('timeline_breakdown', [])
+        suggestions = self.analysis.get('suggestions', [])
         
-        # Basic conversion: replace headers, lists, bold
-        html_body = markdown_body
-        html_body = html_body.replace('# ', '<h1>').replace('\n## ', '</h1>\n<h2>').replace('\n### ', '</h2>\n<h3>')
-        html_body = html_body.replace('**', '<strong>', 1).replace('**', '</strong>', 1)
-        html_body = html_body.replace('- ', '<li>', 1).replace('\n', '</li>\n')
-        html_body = html_body.replace('\n\n', '</p><p>')
+        html_parts = []
+        
+        # Summary section
+        if summary:
+            html_parts.append(self._html_summary(summary))
+        
+        # Bottleneck section
+        if bottleneck:
+            html_parts.append(self._html_bottleneck(bottleneck))
+        
+        # Timeline breakdown
+        if breakdown:
+            html_parts.append(self._html_breakdown(breakdown))
+        
+        # Suggestions
+        if suggestions:
+            html_parts.append(self._html_suggestions(suggestions))
+        
+        html_body = '\n'.join(html_parts)
         
         html = f"""<!DOCTYPE html>
 <html>
@@ -200,21 +325,36 @@ class ReportGenerator:
     <meta charset="UTF-8">
     <title>InferScope Performance Report</title>
     <style>
-        body {{ font-family: Arial, sans-serif; max-width: 900px; margin: 40px auto; padding: 20px; }}
-        h1 {{ color: #2c3e50; }}
-        h2 {{ color: #34495e; margin-top: 30px; }}
-        h3 {{ color: #7f8c8d; }}
+        body {{ font-family: Arial, sans-serif; max-width: 900px; margin: 40px auto; padding: 20px; background-color: #f5f5f5; }}
+        .container {{ background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
+        h1 {{ color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; }}
+        h2 {{ color: #34495e; margin-top: 30px; border-bottom: 2px solid #ecf0f1; padding-bottom: 8px; }}
+        h3 {{ color: #7f8c8d; margin-top: 20px; }}
         table {{ border-collapse: collapse; width: 100%; margin: 20px 0; }}
         th, td {{ border: 1px solid #ddd; padding: 12px; text-align: left; }}
         th {{ background-color: #3498db; color: white; }}
+        tr:nth-child(even) {{ background-color: #f9f9f9; }}
         code {{ background-color: #f4f4f4; padding: 2px 6px; border-radius: 3px; }}
         .priority-high {{ color: #e74c3c; font-weight: bold; }}
         .priority-medium {{ color: #f39c12; }}
         .priority-low {{ color: #95a5a6; }}
+        .metric {{ display: inline-block; margin-right: 20px; padding: 10px 15px; background-color: #ecf0f1; border-radius: 5px; }}
+        .evidence {{ background-color: #fff3cd; padding: 10px; border-left: 4px solid #ffc107; margin: 10px 0; }}
+        ul {{ list-style-type: none; padding-left: 0; }}
+        li {{ margin: 8px 0; padding-left: 20px; position: relative; }}
+        li:before {{ content: "▸"; position: absolute; left: 0; color: #3498db; }}
+        .footer {{ margin-top: 40px; padding-top: 20px; border-top: 1px solid #ecf0f1; text-align: center; color: #7f8c8d; font-size: 0.9em; }}
     </style>
 </head>
 <body>
-    {html_body}
+    <div class="container">
+        <h1>InferScope Performance Report</h1>
+        <p><strong>Generated:</strong> {self.timestamp}</p>
+        {html_body}
+        <div class="footer">
+            Report generated by InferScope v0.1
+        </div>
+    </div>
 </body>
 </html>
 """

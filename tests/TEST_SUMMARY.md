@@ -83,8 +83,7 @@ Total: 17 tests
 
 ### Setup
 ```bash
-cd /home/zhiyis/workspace/code/InferScope
-source .venv/bin/activate  # Activate uv virtual environment
+source .venv/bin/activate  # Activate virtual environment
 uv pip install pytest pytest-cov
 ```
 

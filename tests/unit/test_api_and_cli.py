@@ -102,7 +102,7 @@ class TestCLI:
         """Test 'inferscope config show' command."""
         result = subprocess.run(
             [sys.executable, "scripts/inferscope", "config", "show"],
-            cwd="/home/zhiyis/workspace/code/InferScope",
+            cwd=os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
             capture_output=True,
             text=True
         )
@@ -115,7 +115,7 @@ class TestCLI:
         """Test analyze command with missing trace file."""
         result = subprocess.run(
             [sys.executable, "scripts/inferscope", "analyze", "/nonexistent/trace.json"],
-            cwd="/home/zhiyis/workspace/code/InferScope",
+            cwd=os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
             capture_output=True,
             text=True
         )
@@ -143,7 +143,7 @@ class TestCLI:
             result = subprocess.run(
                 [sys.executable, "scripts/inferscope", "analyze", trace_file, 
                  "--output", report_file, "--format", "markdown"],
-                cwd="/home/zhiyis/workspace/code/InferScope",
+                cwd=os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
                 capture_output=True,
                 text=True
             )
@@ -169,7 +169,7 @@ class TestCLIRun:
         """Test run command with missing script."""
         result = subprocess.run(
             [sys.executable, "scripts/inferscope", "run", "/nonexistent/script.py"],
-            cwd="/home/zhiyis/workspace/code/InferScope",
+            cwd=os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
             capture_output=True,
             text=True
         )
@@ -187,7 +187,7 @@ class TestCLIRun:
         try:
             result = subprocess.run(
                 [sys.executable, "scripts/inferscope", "run", script_file],
-                cwd="/home/zhiyis/workspace/code/InferScope",
+                cwd=os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
                 capture_output=True,
                 text=True,
                 timeout=10

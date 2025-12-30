@@ -146,7 +146,6 @@
 
 ### Setup Virtual Environment
 ```bash
-cd /home/zhiyis/workspace/code/InferScope
 source .venv/bin/activate  # Already created
 ```
 
