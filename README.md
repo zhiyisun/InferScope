@@ -191,15 +191,6 @@ InferScope is under active development. APIs and internals may change rapidly.
 
 ---
 
-## Temporary Development Docs
-
-During implementation, we generate short-lived summary/checklist documents to track progress. These are stored under [Doc/8_module_implementation/_temp](Doc/8_module_implementation/_temp).
-
-- These files are not part of the product deliverables
-- Safe to delete anytime via the cleanup task below
-
----
-
 ## Outputs Folder
 
 Generated artifacts (analysis reports, traces, scaling summaries) are written to [outputs/](outputs/):
