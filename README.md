@@ -134,22 +134,42 @@ InferScope consists of four core components:
 
 ---
 
-## Quick Start (Planned)
+## Quick Start (Current)
+
+### Current Usage (Direct Python)
+
+InferScope is currently used by running Python scripts directly:
 
 ```bash
-pip install inferscope
+# Run profiler on your own code
+source .venv/bin/activate
+python examples/demo_llm_inference.py --model Qwen/Qwen3-0.6B-Base --stress-mode
 
+# Analyze the generated trace
+python scripts/inferscope analyze outputs/demo_llm_trace.json --output outputs/llm_report.md
+```
+
+### Library Usage
+
+You can also instrument your own code using the InferScope Python API:
+
+```python
+from inferscope import scope, Profiler
+
+with scope("my_inference"):
+    output = model.generate(inputs)
+```
+
+### Planned CLI (Future)
+
+The planned `inferscope` command-line tool will provide a simpler interface:
+
+```bash
+# Planned (not yet available):
 inferscope run python infer.py --report report.md
 ```
 
-Library usage:
-
-```python
-from inferscope import scope
-
-with scope("llm_inference"):
-    output = model.generate(inputs)
-```
+This will be available in a future release.
 
 ---
 
