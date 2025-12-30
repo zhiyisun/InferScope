@@ -103,6 +103,6 @@
 
 ## Test Data
 
-- Example traces: `/Doc/6_test_cases/traces/`
-- Synthetic workloads: `/tests/fixtures/`
+- Example traces: `/docs/6_test_cases/traces/`
+- Synthetic workloads: Defined in `tests/conftest.py`
 - Reference reports: `/tests/expected_outputs/`

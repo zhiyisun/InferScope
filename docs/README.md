@@ -10,11 +10,11 @@ InferScope uses a **single source of truth** approach where machine-readable YAM
 
 The following Markdown files are **automatically generated** and should NOT be edited manually:
 
-| Source (YAML) | Generated (Markdown) | Generator Script | Make Target |
-|---------------|---------------------|------------------|-------------|
-| `Doc/1_requirements/requirements.yaml` | `Doc/1_requirements/PRD.md` | `scripts/generate_prd.py` | `make prd` |
-| `Doc/2_system_architecture/architecture.yaml` | `Doc/2_system_architecture/SAD.md` | `scripts/generate_sad.py` | `make sad` |
-| `Doc/3_module_design/interfaces.yaml` | `Doc/3_module_design/ICD.md` | `scripts/generate_icd.py` | `make icd` |
+| Source (YAML) | Generated (Markdown) | Generator Script |
+|---------------|---------------------|------------------|
+| `docs/1_requirements/requirements.yaml` | `docs/1_requirements/PRD.md` | `scripts/generate_docs.py` |
+| `docs/2_system_architecture/architecture.yaml` | `docs/2_system_architecture/SAD.md` | `scripts/generate_docs.py` |
+| `docs/3_module_design/interfaces.yaml` | `docs/3_module_design/ICD.md` | `scripts/generate_docs.py` |
 
 ### Regenerate All Documentation
 
@@ -28,44 +28,37 @@ This regenerates PRD.md, SAD.md, and ICD.md from their YAML sources.
 
 The following files are **manually maintained** (not auto-generated):
 
-### Requirements
-- `Doc/1_requirements/SRD.md` - System Requirement Document
-
 ### Architecture
-- `Doc/2_system_architecture/technology_rationale.md` - Technology choices and trade-offs
+- `docs/2_system_architecture/technology_rationale.md` - Technology choices and trade-offs
 
 ### Module Design
-- `Doc/3_module_design/module_specs/*.md` - Individual module specifications
+- `docs/3_module_design/module_specs/*.md` - Individual module specifications
   - `cpu_collector.md`
   - `gpu_collector.md`
   - `timeline_merger.md`
 
 ### Data Schema
-- `Doc/4_data_schema/data_model.md` - Data structures and formats
-- `Doc/4_data_schema/schema.json` - JSON Schema for trace validation
+- `docs/4_data_schema/data_model.md` - Data structures and formats
+- `docs/4_data_schema/schema.json` - JSON Schema for trace validation
 
 ### Testing
-- `Doc/5_test_framework/test_strategy.md` - Overall test strategy
-- `Doc/6_test_cases/unit_tests.md` - Unit test specifications
+- `docs/5_test_framework/test_strategy.md` - Overall test strategy
+- `docs/6_test_cases/unit_tests.md` - Unit test specifications
 
 ### Coding Standards
-- `Doc/7_coding_standards/coding_standards.md` - Python/C++ style guide
-- `Doc/7_coding_standards/repo_structure.md` - Repository organization
-
-### Implementation
-- `Doc/8_module_implementation/ASSUMPTIONS.md` - Design assumptions, implementation status, roadmap
-- `Doc/8_module_implementation/CPU_COLLECTOR_IMPLEMENTATION.md` - CPU Collector implementation notes
+- `docs/7_coding_standards/coding_standards.md` - Python/C++ style guide
+- `docs/7_coding_standards/repo_structure.md` - Repository organization
 
 ### Integration
-- `Doc/9_system_integration/integration_plan.md` - Phase-by-phase roadmap
-- `Doc/9_system_integration/deployment_architecture.md` - Runtime topology
-- `Doc/9_system_integration/integration_strategy.md` - Component integration details
+- `docs/8_system_integration/integration_plan.md` - Phase-by-phase roadmap
+- `docs/8_system_integration/deployment_architecture.md` - Runtime topology
+- `docs/8_system_integration/integration_strategy.md` - Component integration details
 
 ### System Testing
-- `Doc/10_system_test/system_test_spec.md` - End-to-end test scenarios
+- `docs/9_system_test/system_test_spec.md` - End-to-end test scenarios
 
 ### Operations
-- `Doc/11_operations/runbooks.md` - Troubleshooting and deployment
+- `docs/10_operations/runbooks.md` - Troubleshooting and deployment
 
 ## Workflow
 
@@ -73,14 +66,14 @@ The following files are **manually maintained** (not auto-generated):
 
 ```bash
 # 1. Edit YAML source
-vim Doc/1_requirements/requirements.yaml
+vim docs/1_requirements/requirements.yaml
 
-# 2. Regenerate PRD
-make prd
+# 2. Regenerate all docs
+make docs
 
 # 3. Review and commit
-git diff Doc/1_requirements/
-git add Doc/1_requirements/
+git diff docs/1_requirements/
+git add docs/1_requirements/
 git commit -m "Update requirements"
 ```
 
@@ -88,13 +81,13 @@ git commit -m "Update requirements"
 
 ```bash
 # 1. Edit YAML source
-vim Doc/2_system_architecture/architecture.yaml
+vim docs/2_system_architecture/architecture.yaml
 
-# 2. Regenerate SAD
-make sad
+# 2. Regenerate all docs
+make docs
 
 # 3. Review and commit
-git add Doc/2_system_architecture/
+git add docs/2_system_architecture/
 git commit -m "Update architecture"
 ```
 
@@ -102,13 +95,13 @@ git commit -m "Update architecture"
 
 ```bash
 # 1. Edit YAML source
-vim Doc/3_module_design/interfaces.yaml
+vim docs/3_module_design/interfaces.yaml
 
-# 2. Regenerate ICD
-make icd
+# 2. Regenerate all docs
+make docs
 
 # 3. Review and commit
-git add Doc/3_module_design/
+git add docs/3_module_design/
 git commit -m "Update API interfaces"
 ```
 
@@ -119,10 +112,10 @@ git commit -m "Update API interfaces"
 make docs
 
 # Review all changes
-git diff Doc/
+git diff docs/
 
 # Commit
-git add Doc/
+git add docs/
 git commit -m "Update documentation"
 ```
 
@@ -136,9 +129,9 @@ To automatically regenerate docs before each commit, add to `.git/hooks/pre-comm
 make docs
 
 # Stage generated files
-git add Doc/1_requirements/PRD.md
-git add Doc/2_system_architecture/SAD.md
-git add Doc/3_module_design/ICD.md
+git add docs/1_requirements/PRD.md
+git add docs/2_system_architecture/SAD.md
+git add docs/3_module_design/ICD.md
 ```
 
 Make it executable:
@@ -164,7 +157,7 @@ jobs:
         run: make docs
       - name: Check for changes
         run: |
-          if ! git diff --quiet Doc/; then
+          if ! git diff --quiet docs/; then
             echo "Documentation is out of sync with YAML sources"
             echo "Run 'make docs' and commit the changes"
             exit 1

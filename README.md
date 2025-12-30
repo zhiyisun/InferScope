@@ -301,7 +301,7 @@ uv pip install -r requirements.txt
 Run the quick function verification demo to confirm everything is set up correctly:
 
 ```bash
-python scripts/run_profiler_demo.py
+python examples/run_profiler_demo.py
 ```
 
 You should see CPU/GPU profiling statistics and a unified timeline output.
@@ -329,7 +329,7 @@ Run a quick end-to-end demo that collects CPU and GPU events and prints a unifie
 
 ```bash
 source .venv/bin/activate
-python scripts/run_profiler_demo.py
+python examples/run_profiler_demo.py
 ```
 
 Or use the make target:

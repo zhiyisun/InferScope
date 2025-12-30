@@ -11,10 +11,9 @@ InferScope/
 ├── setup.py                           # Setup script
 ├── setup.cfg                          # Setup configuration
 │
-├── Doc/                               # AI-friendly documentation
+├── docs/                               # AI-friendly documentation
 │   ├── 1_requirements/
 │   │   ├── PRD.md                     # Product Requirement Document
-│   │   ├── SRD.md                     # System Requirement Document
 │   │   └── requirements.yaml          # Machine-readable requirements
 │   ├── 2_system_architecture/
 │   │   ├── SAD.md                     # System Architecture Document
@@ -45,22 +44,15 @@ InferScope/
 │   ├── 7_coding_standards/
 │   │   ├── coding_standards.md
 │   │   └── repo_structure.md          # This file
-│   ├── 8_module_implementation/
-│   │   ├── cpu_collector/
-│   │   │   ├── implementation.py
-│   │   │   ├── tests.py
-│   │   │   └── README.md
-│   │   ├── gpu_collector/
-│   │   └── ...
-│   ├── 9_system_integration/
+│   ├── 8_system_integration/
 │   │   ├── integration_plan.md
 │   │   ├── deployment_architecture.md
 │   │   └── integration.yaml
-│   ├── 10_system_test/
+│   ├── 9_system_test/
 │   │   ├── system_test_spec.md
 │   │   ├── performance_benchmarks.md
 │   │   └── acceptance_criteria.yaml
-│   └── 11_operations/
+│   └── 10_operations/
 │       ├── runbooks.md
 │       ├── alert_definitions.md
 │       ├── logging_metrics.md
@@ -229,7 +221,7 @@ python -m build
 | `src/inferscope/` | Python Lead | Core Python implementation |
 | `cpp/` | GPU Lead | CUPTI integration, C++ code |
 | `tests/` | QA Lead | Test coverage, test infrastructure |
-| `Doc/` | Technical Lead | Documentation, specs, design |
+| `docs/` | Technical Lead | Documentation, specs, design |
 | `.github/workflows/` | DevOps | CI/CD pipeline |
 
 ## File Size Guidelines

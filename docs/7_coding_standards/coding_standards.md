@@ -231,7 +231,7 @@ InferScope/
 │   ├── integration/
 │   ├── system/
 │   └── fixtures/
-├── Doc/                      # Documentation (per AI workflow)
+├── docs/                      # Documentation (per AI workflow)
 ├── pyproject.toml            # Python package config
 ├── setup.py                  # Setup script
 └── README.md

@@ -343,4 +343,4 @@ This document defines the data structures, relationships, and constraints for In
 
 ## 7. Example: Complete Trace
 
-See `/Doc/6_test_cases/example_trace.json` for a realistic end-to-end trace example.
+See `/docs/6_test_cases/example_trace.json` for a realistic end-to-end trace example.

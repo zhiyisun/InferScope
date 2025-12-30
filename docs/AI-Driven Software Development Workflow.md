@@ -235,7 +235,6 @@ Doc/
 │
 ├── 1_requirements/
 │ ├── PRD.md # Product Requirement Document
-│ ├── SRD.md # System Requirement Document
 │ └── requirements.yaml # Machine-readable requirements
 │
 ├── 2_system_architecture/
@@ -270,25 +269,17 @@ Doc/
 │ ├── coding_standards.md
 │ └── repo_structure.md
 │
-├── 8_module_implementation/
-│ ├── module_X/
-│ │ ├── implementation.py
-│ │ ├── tests.py
-│ │ └── README.md # Assumptions, TODOs
-│ ├── module_Y/
-│ └── module_Z/
-│
-├── 9_system_integration/
+├── 8_system_integration/
 │ ├── integration_plan.md
 │ ├── deployment_architecture.md
 │ └── integration.yaml
 │
-├── 10_system_test/
+├── 9_system_test/
 │ ├── system_test_spec.md
 │ ├── performance_benchmarks.md
 │ └── acceptance_criteria.yaml
 │
-└── 11_operations/
+└── 10_operations/
 ├── runbooks.md
 ├── alert_definitions.md
 ├── logging_metrics.md

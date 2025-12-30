@@ -11,9 +11,7 @@ help:
 
 docs:
 	@echo "Generating documentation from YAML sources..."
-	@python scripts/generate_prd.py
-	@python scripts/generate_sad.py
-	@python scripts/generate_icd.py
+	@python scripts/generate_docs.py
 	@echo "✓ All documentation generated"
 
 clean:
@@ -31,7 +29,7 @@ test:
 
 demo:
 	@echo "Running profiler demo..."
-	@.venv/bin/python scripts/run_profiler_demo.py
+	@.venv/bin/python examples/run_profiler_demo.py
 	@echo "✓ Function verification demo finished"
 	@echo ""
 	@echo "Running LLM inference demo..."

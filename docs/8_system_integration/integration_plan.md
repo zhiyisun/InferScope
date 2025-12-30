@@ -18,7 +18,7 @@
 
 **Phase 4: Output & Reporting** (Weeks 7-8)
 - ✅ Report Generator: Markdown, HTML, and JSON output formats
-- ✅ End-to-End Demo: scripts/run_e2e_demo.py demonstrating full pipeline
+- ✅ End-to-End Demo: examples/demo_llm_inference.py demonstrating full pipeline
 
 ### In-Progress / Planned
 

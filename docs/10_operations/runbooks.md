@@ -266,7 +266,7 @@ mv report.md reports/archive/report_$(date +%Y%m%d_%H%M%S).md
 
 1. **Check logs:** `export INFERSCOPE_LOG_LEVEL=debug; inferscope run ...`
 2. **See example:** `python examples/simple_inference.py`
-3. **Read docs:** See `/Doc/` folder in repo
+3. **Read docs:** See `/docs/` folder in repo
 4. **File issue:** GitHub Issues with:
    - OS and GPU model
    - CUDA version
