@@ -7,178 +7,105 @@ InferScope/
 │
 ├── README.md                          # Project overview
 ├── LICENSE                            # Apache 2.0
+├── Makefile                           # Development tasks (docs, test, demo, clean)
 ├── pyproject.toml                     # Python package config
-├── setup.py                           # Setup script
-├── setup.cfg                          # Setup configuration
 │
-├── docs/                               # AI-friendly documentation
+├── docs/                              # Documentation (auto-generated from YAML)
+│   ├── README.md                      # Documentation structure guide
+│   ├── AI-Driven Software Development Workflow.md
 │   ├── 1_requirements/
-│   │   ├── PRD.md                     # Product Requirement Document
-│   │   └── requirements.yaml          # Machine-readable requirements
+│   │   ├── requirements.yaml          # Machine-readable requirements (source)
+│   │   └── PRD.md                     # Product Requirement Document (auto-gen)
 │   ├── 2_system_architecture/
-│   │   ├── SAD.md                     # System Architecture Document
-│   │   ├── technology_rationale.md    # Tech choices & tradeoffs
-│   │   └── architecture.yaml          # Component definitions
+│   │   ├── architecture.yaml          # Component definitions (source)
+│   │   ├── SAD.md                     # System Architecture Document (auto-gen)
+│   │   └── technology_rationale.md    # Tech choices & tradeoffs
 │   ├── 3_module_design/
-│   │   ├── ICD.md                     # Interface Control Document
-│   │   ├── interfaces.yaml            # Machine-readable APIs
+│   │   ├── interfaces.yaml            # Machine-readable APIs (source)
+│   │   ├── ICD.md                     # Interface Control Document (auto-gen)
 │   │   └── module_specs/
 │   │       ├── cpu_collector.md
 │   │       ├── gpu_collector.md
-│   │       ├── timeline_merger.md
-│   │       ├── analyzer_engine.md
-│   │       └── report_generator.md
+│   │       └── timeline_merger.md
 │   ├── 4_data_schema/
-│   │   ├── data_model.md              # Data Model Specification
-│   │   ├── config_spec.md
-│   │   └── schema.json                # JSON Schema for traces
+│   │   ├── data_model.md
+│   │   └── schema.json
 │   ├── 5_test_framework/
-│   │   ├── test_strategy.md
-│   │   └── test_framework.md
+│   │   └── test_strategy.md
 │   ├── 6_test_cases/
-│   │   ├── unit_tests.yaml
-│   │   ├── integration_tests.yaml
-│   │   ├── system_tests.yaml
-│   │   ├── edge_cases.yaml
-│   │   └── traces/                    # Example trace files
+│   │   └── unit_tests.md
 │   ├── 7_coding_standards/
 │   │   ├── coding_standards.md
 │   │   └── repo_structure.md          # This file
 │   ├── 8_system_integration/
 │   │   ├── integration_plan.md
-│   │   ├── deployment_architecture.md
-│   │   └── integration.yaml
+│   │   ├── integration_strategy.md
+│   │   └── deployment_architecture.md
 │   ├── 9_system_test/
-│   │   ├── system_test_spec.md
-│   │   ├── performance_benchmarks.md
-│   │   └── acceptance_criteria.yaml
+│   │   └── system_test_spec.md
 │   └── 10_operations/
-│       ├── runbooks.md
-│       ├── alert_definitions.md
-│       ├── logging_metrics.md
-│       └── failure_patterns.md
+│       └── runbooks.md
 │
 ├── src/
 │   └── inferscope/                    # Main Python package
-│       ├── __init__.py                # Package init, version
-│       ├── cli.py                     # CLI entry point
+│       ├── __init__.py
 │       ├── api.py                     # Public Python API (scope, mark_event)
+│       ├── cli.py                     # CLI interface (inferscope command)
+│       ├── profiler.py                # Main Profiler orchestrator
 │       │
 │       ├── collectors/
 │       │   ├── __init__.py
-│       │   ├── base.py                # BaseCollector abstract class
-│       │   ├── cpu.py                 # CpuCollector
-│       │   ├── gpu.py                 # GpuCollector
-│       │   ├── memory.py              # MemoryCollector
-│       │   └── trace_buffer.py        # TraceBuffer (ring buffer)
+│       │   ├── cpu.py                 # CpuCollector (sys.settrace)
+│       │   └── gpu.py                 # GpuCollector (CUPTI)
 │       │
-│       ├── merger/
+│       ├── timeline/
 │       │   ├── __init__.py
-│       │   ├── timeline_merger.py     # TimelineMerger
-│       │   └── clock_sync.py          # Clock synchronization
+│       │   └── merger.py              # TimelineMerger (clock sync, event ordering)
 │       │
 │       ├── analyzer/
 │       │   ├── __init__.py
-│       │   ├── bottleneck_analyzer.py # BottleneckAnalyzer
-│       │   ├── rules.py               # Bottleneck detection rules
-│       │   └── suggestions.py         # Suggestion generation
+│       │   └── bottleneck_analyzer.py # BottleneckAnalyzer (rules + suggestions)
 │       │
-│       ├── reporter/
-│       │   ├── __init__.py
-│       │   ├── report_generator.py    # ReportGenerator
-│       │   ├── templates/
-│       │   │   ├── markdown.jinja2    # Markdown template
-│       │   │   └── html.jinja2        # HTML template
-│       │   └── formatters.py          # Output formatting
-│       │
-│       ├── config/
-│       │   ├── __init__.py
-│       │   ├── config_parser.py       # Config file/env var parsing
-│       │   └── defaults.yaml          # Default configuration
-│       │
-│       ├── utils/
-│       │   ├── __init__.py
-│       │   ├── logger.py              # Logging setup
-│       │   ├── profiling.py           # Performance profiling
-│       │   └── validation.py          # Input validation
-│       │
-│       ├── ext/                       # C++ extensions
-│       │   ├── __init__.py
-│       │   └── _cupti_wrapper.so      # Compiled CUPTI wrapper (if available)
-│       │
-│       └── __version__.py
-│
-├── cpp/                               # C++ code for CUPTI integration
-│   ├── CMakeLists.txt
-│   ├── src/
-│   │   ├── cupti_wrapper.cpp
-│   │   ├── gpu_collector.cpp
-│   │   └── trace_buffer.cpp
-│   ├── include/
-│   │   ├── cupti_wrapper.h
-│   │   ├── gpu_collector.h
-│   │   └── trace_buffer.h
-│   └── tests/
-│       └── test_cupti_wrapper.cpp
+│       └── reporter/
+│           ├── __init__.py
+│           └── report_generator.py    # ReportGenerator (MD/HTML output)
 │
 ├── tests/
 │   ├── __init__.py
-│   │
-│   ├── unit/
-│   │   ├── test_cpu_collector.py
-│   │   ├── test_gpu_collector.py
-│   │   ├── test_timeline_merger.py
-│   │   ├── test_analyzer.py
-│   │   ├── test_reporter.py
-│   │   └── test_cli.py
-│   │
-│   ├── integration/
-│   │   ├── test_collection_pipeline.py
-│   │   ├── test_full_workflow.py
-│   │   └── test_api.py
-│   │
-│   ├── system/
-│   │   ├── test_llm_inference.py
-│   │   ├── test_cnn_inference.py
-│   │   └── test_embedding_inference.py
-│   │
-│   ├── fixtures/
-│   │   ├── conftest.py                # pytest fixtures
-│   │   ├── mock_gpu.py                # Mock GPU/CUDA
-│   │   ├── synthetic_workloads.py     # Synthetic ML workloads
-│   │   └── sample_traces.json         # Example trace data
-│   │
-│   └── performance/
-│       ├── test_profiling_overhead.py
-│       └── test_clock_sync_accuracy.py
+│   ├── conftest.py                    # Pytest fixtures (MockTraceBuffer)
+│   └── unit/
+│       ├── __init__.py
+│       ├── test_cpu_collector.py
+│       ├── test_gpu_collector.py
+│       ├── test_timeline_merger.py
+│       ├── test_analyzer.py
+│       ├── test_reporter.py
+│       ├── test_profiler.py
+│       └── test_api_and_cli.py
 │
-├── .github/
-│   └── workflows/
-│       ├── tests.yml                  # Unit/integration tests CI
-│       ├── system-tests.yml           # GPU system tests (optional)
-│       └── lint-and-format.yml        # Linting and type checking
+├── examples/
+│   ├── run_profiler_demo.py           # Quick verification demo (CPU/GPU collection)
+│   └── demo_llm_inference.py          # Real LLM demo (Qwen3 0.6B)
 │
-├── .gitignore
-├── .pre-commit-config.yaml            # Pre-commit hooks
-├── pyproject.toml                     # Python project metadata
-├── setup.py                           # Setup script
-├── setup.cfg                          # Setup configuration
-├── Makefile                           # Common tasks (build, test, clean)
-├── CONTRIBUTING.md                    # Contribution guidelines
-├── CHANGELOG.md                       # Version history
-└── examples/
-    ├── simple_inference.py            # Minimal inference example
-    ├── llm_inference.py               # LLM inference example
-    ├── cnn_inference.py               # CNN inference example
-    └── custom_scopes.py               # Custom API usage example
+├── scripts/
+│   ├── generate_docs.py               # Generate PRD/SAD/ICD from YAML sources
+│   ├── inferscope                     # CLI entry point script
+│   └── git-hooks/
+│       └── pre-commit                 # Git pre-commit hook
+│
+├── outputs/                           # Generated profiling artifacts (.gitignored)
+│   ├── *.json                         # Raw trace files
+│   └── *_report.md / *.html           # Analysis reports
+│
+└── .gitignore                         # Git exclusions (auto-gen docs, __pycache__, etc)
 ```
 
 ## Naming Conventions
 
 ### Module Files
 - Use **lowercase with underscores**: `cpu_collector.py`, `timeline_merger.py`
-- One class per file preferred (for larger classes)
-- Prefix private modules with underscore: `_internal_utils.py`
+- One class per file preferred
+- Prefix private modules with underscore: `_internal.py`
 
 ### Test Files
 - Pattern: `test_<module>.py`
@@ -191,44 +118,18 @@ InferScope/
 - Env vars: `INFERSCOPE_*` prefix
 
 ### Documentation Files
-- Specs: `*_spec.md` or `*_specification.md`
-- Guides: `*_guide.md`
+- Specs: `*_spec.md`
 - Architecture: `*_architecture.md` or `*_design.md`
-
-## Build & Distribution
-
-### Python Package Distribution
-- **Setup**: `setup.py` + `pyproject.toml` (modern)
-- **Distribution**: PyPI (inferscope package)
-- **Pre-built wheels**: For common CUDA versions (11.8, 12.0)
-
-### Build Process
-```bash
-# Build Python package
-pip install -e ".[dev]"
-
-# Build C++ extensions (if CUDA available)
-python setup.py build_ext --inplace
-
-# Create distribution wheels
-python -m build
-```
 
 ## File Ownership & Responsibility
 
-| Directory | Owner | Responsibility |
-|-----------|-------|-----------------|
-| `src/inferscope/` | Python Lead | Core Python implementation |
-| `cpp/` | GPU Lead | CUPTI integration, C++ code |
-| `tests/` | QA Lead | Test coverage, test infrastructure |
-| `docs/` | Technical Lead | Documentation, specs, design |
-| `.github/workflows/` | DevOps | CI/CD pipeline |
-
-## File Size Guidelines
-
-- **Python modules**: <500 lines (prefer breaking into smaller modules)
-- **Test files**: <300 lines per test file
-- **Documentation files**: <200 lines (break into sections as needed)
+| Directory | Responsibility |
+|-----------|-----------------|
+| `src/inferscope/` | Core Python implementation |
+| `tests/` | Test coverage and infrastructure |
+| `docs/` | Documentation, specs, design |
+| `examples/` | Demo and example code |
+| `scripts/` | Utility and build scripts |
 
 ## Git Workflow
 
@@ -236,27 +137,14 @@ python -m build
 - Features: `feature/cpu-profiling`
 - Bugfixes: `bugfix/clock-sync-error`
 - Docs: `docs/architecture-update`
-- Release: `release/v0.1.0`
 
 ### Commit Message Format
 ```
 [COMPONENT] Short description (50 chars max)
 
-Longer explanation (wrap at 72 chars):
+Longer explanation:
 - What changed
 - Why it changed
-- Any side effects
 
 Fixes #123
-```
-
-Example:
-```
-[collectors] Fix CPU thread safety in settrace hook
-
-The previous implementation used a shared dict without locks, causing
-race conditions when multiple threads collected events simultaneously.
-This commit uses thread-local storage (TLS) via threading.local().
-
-Fixes #45
 ```
