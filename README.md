@@ -136,17 +136,72 @@ InferScope consists of four core components:
 
 ## Quick Start (Current)
 
-### Current Usage (Direct Python)
+### Current Usage (Instrument Your Code)
 
-InferScope is currently used by running Python scripts directly:
+InferScope works by instrumenting your inference code. Here's a typical workflow:
+
+**1. Create your inference script and add InferScope instrumentation:**
+
+```python
+# my_inference.py
+from inferscope import Profiler
+from inferscope.api import scope, set_global_profiler
+import json
+
+class SimpleBuffer:
+    def __init__(self):
+        self.events = []
+    def enqueue(self, event):
+        self.events.append(event.copy())
+        return True
+    def read_all(self):
+        return [e.copy() for e in self.events]
+    def save(self, path):
+        with open(path, 'w') as f:
+            json.dump({"events": self.events}, f)
+
+# Initialize profiler
+buf = SimpleBuffer()
+profiler = Profiler(buf)
+set_global_profiler(profiler)
+
+# Start profiling
+profiler.start()
+
+# Wrap your inference code with scope()
+with scope("my_inference"):
+    output = model.generate(inputs)
+
+# Stop profiling and save
+profiler.stop()
+buf.save("trace.json")
+```
+
+**2. Run your script:**
 
 ```bash
-# Run profiler on your own code
-source .venv/bin/activate
-python examples/demo_llm_inference.py --model Qwen/Qwen3-0.6B-Base --stress-mode
+python my_inference.py
+```
 
-# Analyze the generated trace
-python scripts/inferscope analyze outputs/demo_llm_trace.json --output outputs/llm_report.md
+**3. Analyze the generated trace:**
+
+```bash
+python scripts/inferscope analyze trace.json --output report.md
+python scripts/inferscope analyze trace.json --output report.html --format html
+```
+
+The generated reports will show:
+- Where your inference time is spent (CPU, GPU, memory transfers)
+- Bottleneck identification (CPU-bound vs GPU-bound)
+- Actionable optimization suggestions
+
+### Quick Demo
+
+To quickly see InferScope in action, run the provided demo:
+
+```bash
+python examples/demo_llm_inference.py --model Qwen/Qwen3-0.6B-Base --stress-mode
+python scripts/inferscope analyze outputs/demo_llm_trace.json --output outputs/report.md
 ```
 
 ### Library Usage
