@@ -1,69 +1,47 @@
-.PHONY: help docs prd sad icd clean test cleanup-temp-docs demo coverage integration
+.PHONY: help docs clean test demo
 
 help:
 	@echo "InferScope Development Makefile"
 	@echo ""
 	@echo "Available targets:"
-	@echo "  make docs     - Generate all documentation from YAML sources"
-	@echo "  make prd      - Generate PRD.md from requirements.yaml"
-	@echo "  make sad      - Generate SAD.md from architecture.yaml"
-		@echo "  make icd      - Generate ICD.md from interfaces.yaml"
-	@echo "  make clean    - Remove build artifacts"
-	@echo "  make cleanup-temp-docs - Remove docs/_temp temporary documents"
-	@echo "  make test     - Run tests (not yet implemented)"
-	@echo "  make demo     - Run the profiler demo script"
-	@echo "  make coverage - Run unit tests with coverage and generate HTML report"
-	@echo "  make integration - Run demo and orchestrator checks (end-to-end)"
+	@echo "  make docs  - Generate all documentation from YAML sources"
+	@echo "  make clean - Remove build artifacts"
+	@echo "  make test  - Run all unit tests with coverage report"
+	@echo "  make demo  - Run the profiler demo script"
 
-docs: prd sad icd
-	@echo "✓ All documentation generated"
-
-prd:
-	@echo "Generating PRD.md from requirements.yaml..."
+docs:
+	@echo "Generating documentation from YAML sources..."
 	@python scripts/generate_prd.py
-
-sad:
-	@echo "Generating SAD.md from architecture.yaml..."
 	@python scripts/generate_sad.py
-
-icd:
-	@echo "Generating ICD.md from interfaces.yaml..."
 	@python scripts/generate_icd.py
+	@echo "✓ All documentation generated"
 
 clean:
 	@echo "Cleaning build artifacts..."
 	@find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	@find . -type f -name "*.pyc" -delete 2>/dev/null || true
+	@rm -rf docs/_temp 2>/dev/null || true
 	@echo "✓ Clean complete"
 
 test:
-	@echo "Running unit tests..."
-	@.venv/bin/python -m pytest tests/unit -v
-
-cleanup-temp-docs:
-	@echo "Removing temporary documents in docs/_temp..."
-	@rm -rf docs/_temp
-	@echo "✓ Temporary documents removed"
-
-demo:
-	@echo "Running profiler demo..."
-	@.venv/bin/python scripts/run_profiler_demo.py
-	@echo "✓ Demo finished"
-
-coverage:
 	@echo "Running unit tests with coverage..."
 	@mkdir -p coverage/html
 	@.venv/bin/python -m pytest tests/unit -v --cov=src --cov-report=term-missing --cov-report=html:coverage/html
 	@echo "✓ Coverage report generated in coverage/html/index.html"
 
-integration:
-	@echo "Running integration demo and orchestrator checks..."
+demo:
+	@echo "Running profiler demo..."
 	@.venv/bin/python scripts/run_profiler_demo.py
-	@.venv/bin/python -m pytest tests/unit/test_profiler.py -v
-	@echo "✓ Integration checks completed"
-
-e2e-demo:
-	@echo "Running end-to-end pipeline demo..."
-	@.venv/bin/python scripts/run_e2e_demo.py
-	@echo "✓ End-to-end demo completed (see demo_report.md)"
+	@echo "✓ Function verification demo finished"
+	@echo ""
+	@echo "Running LLM inference demo..."
+	@.venv/bin/python examples/demo_llm_inference.py --model Qwen/Qwen3-0.6B-Base --max-new-tokens 128 --batch-size 1 --stress-mode
+	@echo "✓ LLM demo finished"
+	@echo ""
+	@echo "Generating analysis reports..."
+	@.venv/bin/python scripts/inferscope analyze outputs/demo_llm_trace.json --output outputs/llm_report.md
+	@.venv/bin/python scripts/inferscope analyze outputs/demo_llm_trace.json --output outputs/llm_report.html --format html
+	@echo "✓ Reports generated (Markdown and HTML)"
+	@echo ""
+	@echo "All demos completed. Check outputs/ for traces and reports."
 
