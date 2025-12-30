@@ -235,11 +235,16 @@ You should see CPU/GPU profiling statistics and a unified timeline output.
 
 ## Outputs Folder
 
-Generated artifacts (analysis reports, traces, scaling summaries) are written to [outputs/](outputs/):
+Generated artifacts from running profiling and analysis are written to the [outputs/](outputs/) directory:
 
-- Traces: `outputs/trace_*.json`, `outputs/demo_llm_trace.json`
-- Reports: `outputs/report_*.md`, `outputs/report_*.html`, `outputs/llm_report.*`
-- Summaries: `outputs/scaling_summary.json`, `outputs/scaling_summary.csv`
+- **Trace files**: JSON files containing raw profiling events from collectors (CPU calls, GPU kernels, memory transfers)
+- **Analysis reports**: Markdown and HTML formatted reports with bottleneck diagnosis and optimization suggestions
+- **Output location**: All generated files are saved to `outputs/` for organization and to prevent cluttering the repo root
+
+Example generated files:
+- `outputs/*.json` - Raw trace data from profiling
+- `outputs/*_report.md` - Human-readable Markdown reports
+- `outputs/*_report.html` - Interactive HTML reports
 
 ## Profiler Demo
 
