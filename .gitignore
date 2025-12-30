@@ -8,6 +8,11 @@ __pycache__/
 # Generated analysis artifacts
 outputs/
 
+# Auto-generated documentation (regenerate with: make docs)
+docs/1_requirements/PRD.md
+docs/2_system_architecture/SAD.md
+docs/3_module_design/ICD.md
+
 # Coverage outputs
 coverage/
 coverage-html/

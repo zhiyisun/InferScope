@@ -217,8 +217,16 @@ def generate_icd(yaml_path: Path, output_path: Path):
             if 'example' in api_spec:
                 lines.append("**Example:**")
                 lines.append("```python")
-                for example_line in api_spec['example']:
-                    lines.append(example_line)
+                # Handle both string and list formats
+                example_content = api_spec['example']
+                if isinstance(example_content, str):
+                    # Multiline string - split by newlines
+                    for example_line in example_content.split('\n'):
+                        lines.append(example_line)
+                else:
+                    # List of lines
+                    for example_line in example_content:
+                        lines.append(example_line)
                 lines.append("```")
                 lines.append("")
     
