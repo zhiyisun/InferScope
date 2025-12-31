@@ -204,25 +204,15 @@ def run_llm_inference(prompt: str = "Deep learning is", max_new_tokens: int = 24
     # ─────────────────────────────────────────────────────────────────────────
     with scope("inference"):
         with torch.no_grad():
-            # Measure actual inference time
-            import time as time_module
-            if use_cuda:
-                torch.cuda.synchronize()
-            inference_start = time_module.perf_counter()
-            
             # Reduce max_new_tokens to balance GPU vs CPU time
             inference_tokens = min(max_new_tokens, 8)
+            if use_cuda:
+                torch.cuda.synchronize()  # Mark GPU work start point
+            
             outputs = model.generate(**inputs_gpu, max_new_tokens=inference_tokens)
             
-            inference_end = time_module.perf_counter()
             if use_cuda:
-                torch.cuda.synchronize()  # Ensure all GPU work is complete
-                # Attribute inference time to GPU since CUDA is available
-                inference_time_ms = (inference_end - inference_start) * 1000
-                inference_time_us = int(inference_time_ms * 1000)
-                if inference_time_us > 0 and profiler.gpu:
-                    # Inject the measured inference as GPU kernel time
-                    profiler.gpu._inject_kernel_event('model_inference', inference_time_us)
+                torch.cuda.synchronize()  # Mark GPU work end point - automatic profiler captures this
 
     # GPU TRANSFER: Device-to-Host (D2H)
     # ─────────────────────────────────────────────────────────────────────────
