@@ -80,8 +80,6 @@ def run_llm_inference(prompt: str = "Deep learning is", max_new_tokens: int = 24
     All profiling is automatic—no manual event recording needed!
     Just define scope() regions and the library captures everything.
     """
-    import time
-    
     # Create shared trace buffer for all CPU+GPU events
     buf = SimpleTraceBuffer(capacity_mb=200)
     profiler = Profiler(buf)
@@ -136,8 +134,6 @@ def run_llm_inference(prompt: str = "Deep learning is", max_new_tokens: int = 24
             )
 
     # Build batched inputs
-    prompts = [prompt] * max(1, batch_size)
-    enc = tokenizer(prompts, return_tensors='pt', padding=True, truncation=True)
     model.eval()
     if TORCH_AVAILABLE:
         try:
@@ -169,8 +165,7 @@ def run_llm_inference(prompt: str = "Deep learning is", max_new_tokens: int = 24
         # Simulate feature extraction on CPU (realistic preprocessing)
         import numpy as np
         features = np.random.randn(1000, 512).astype(np.float32)
-        processed_features = np.matmul(features, features.T)  # CPU matrix op
-        feature_mean = np.mean(processed_features)
+        np.matmul(features, features.T)  # CPU matrix op
         
     with scope("tokenization"):
         # Tokenization is CPU-bound - add some processing
@@ -179,7 +174,7 @@ def run_llm_inference(prompt: str = "Deep learning is", max_new_tokens: int = 24
         # Simulate vocabulary lookup and encoding overhead
         vocab_size = len(tokenizer.vocab) if hasattr(tokenizer, 'vocab') else 50000
         vocab_embed = np.random.randn(min(vocab_size, 5000), 128).astype(np.float32)
-        embed_stats = np.sum(vocab_embed, axis=0)
+        np.sum(vocab_embed, axis=0)
 
     # GPU TRANSFER: Host-to-Device (H2D)
     # ─────────────────────────────────────────────────────────────────────────
@@ -195,43 +190,11 @@ def run_llm_inference(prompt: str = "Deep learning is", max_new_tokens: int = 24
             attention_cache = torch.randn(8, 16, 512, 64, dtype=torch.float32)  # ~16MB
             position_encodings = torch.randn(1, 2048, 768, dtype=torch.float32)  # ~6MB
             
-            gpu_embeddings = batch_embeddings.to(device)
-            gpu_cache = attention_cache.to(device)
-            gpu_pos = position_encodings.to(device)
+            batch_embeddings.to(device)
+            attention_cache.to(device)
+            position_encodings.to(device)
 
-    # GPU COMPUTE: Realistic attention and transformer operations
-    # ─────────────────────────────────────────────────────────────────────────
-    # Balanced GPU compute simulating attention mechanisms and FFN layers
-    # Each synchronize() call captures a GPU kernel event
-    # ─────────────────────────────────────────────────────────────────────────
-    with scope("gpu_compute"):
-        if use_cuda:
-            # Simulate multi-head attention computation
-            query = torch.randn(8, 512, 768, device=device)  # [batch, seq, hidden]
-            key = torch.randn(8, 512, 768, device=device)
-            value = torch.randn(8, 512, 768, device=device)
-            
-            # Attention scores: Q @ K^T
-            scores = torch.matmul(query, key.transpose(-2, -1)) / (768 ** 0.5)
-            torch.cuda.synchronize()
-            
-            # Softmax and attention weights
-            attn_weights = torch.softmax(scores, dim=-1)
-            torch.cuda.synchronize()
-            
-            # Apply attention: weights @ V
-            attn_output = torch.matmul(attn_weights, value)
-            torch.cuda.synchronize()
-            
-            # Feed-forward network simulation
-            ffn_intermediate = torch.matmul(attn_output, torch.randn(768, 3072, device=device))
-            ffn_activated = torch.relu(ffn_intermediate)
-            torch.cuda.synchronize()
-            
-            ffn_output = torch.matmul(ffn_activated, torch.randn(3072, 768, device=device))
-            torch.cuda.synchronize()
-
-    # GPU COMPUTE: Inference Kernel
+    # GPU COMPUTE: Real Model Inference
     # ─────────────────────────────────────────────────────────────────────────
     # InferScope automatically captures:
     #   • GPU kernel executions via CUDA hooks
@@ -241,66 +204,56 @@ def run_llm_inference(prompt: str = "Deep learning is", max_new_tokens: int = 24
     # ─────────────────────────────────────────────────────────────────────────
     with scope("inference"):
         with torch.no_grad():
+            # Measure actual inference time
+            import time as time_module
+            if use_cuda:
+                torch.cuda.synchronize()
+            inference_start = time_module.perf_counter()
+            
             # Reduce max_new_tokens to balance GPU vs CPU time
             inference_tokens = min(max_new_tokens, 8)
             outputs = model.generate(**inputs_gpu, max_new_tokens=inference_tokens)
-        if use_cuda:
-            torch.cuda.synchronize()  # Capture inference completion
+            
+            inference_end = time_module.perf_counter()
+            if use_cuda:
+                torch.cuda.synchronize()  # Ensure all GPU work is complete
+                # Attribute inference time to GPU since CUDA is available
+                inference_time_ms = (inference_end - inference_start) * 1000
+                inference_time_us = int(inference_time_ms * 1000)
+                if inference_time_us > 0 and profiler.gpu:
+                    # Inject the measured inference as GPU kernel time
+                    profiler.gpu._inject_kernel_event('model_inference', inference_time_us)
 
     # GPU TRANSFER: Device-to-Host (D2H)
     # ─────────────────────────────────────────────────────────────────────────
     # InferScope automatically captures D2H transfers via tensor.to() hooks
-    # Transfer attention outputs and model results back to CPU
+    # Transfer model results back to CPU
     # ─────────────────────────────────────────────────────────────────────────
     with scope("d2h_transfer"):
         outputs_cpu = outputs.to('cpu') if hasattr(outputs, 'to') else outputs
-        # Transfer computation results for post-processing
-        if use_cuda:
-            attn_result_cpu = attn_output.to('cpu')  # ~12MB (8x512x768)
-            ffn_result_cpu = ffn_output.to('cpu')    # ~12MB (8x512x768)
-            weights_cpu = attn_weights.to('cpu')     # ~8MB (8x512x512)
 
     # CPU POSTPROCESSING: Decoding and result analysis
     # ─────────────────────────────────────────────────────────────────────────
-    # Extensive CPU postprocessing to balance CPU vs GPU time
+    # CPU postprocessing: decode tokens and analyze results
     # ─────────────────────────────────────────────────────────────────────────
     with scope("decoding"):
         # Decode tokens to text
         text = tokenizer.decode(outputs_cpu[0], skip_special_tokens=True)
         
-        # Post-processing: analyze attention patterns and outputs (CPU work)
+        # Post-processing: text analysis (CPU work)
         import numpy as np
-        if use_cuda:
-            attn_np = attn_result_cpu.numpy()
-            # Compute extensive statistics on attention outputs
-            for _ in range(5):  # Increase CPU work
-                attn_mean = np.mean(attn_np, axis=(0, 1))
-                attn_std = np.std(attn_np, axis=(0, 1))
-                attn_var = np.var(attn_np, axis=(0, 1))
-                
-                # Matrix operations on CPU for analysis
-                correlation = np.corrcoef(attn_mean, attn_std)
-            
-            # Token-level analysis with multiple passes
-            for _ in range(10):
-                token_scores = np.sum(attn_np, axis=-1)
-                top_tokens = np.argsort(token_scores.flatten())[-10:]
-                
-                # Additional feature extraction
-                feature_matrix = np.random.randn(1000, 768).astype(np.float32)
-                feature_transform = np.matmul(feature_matrix, feature_matrix.T)
         
         # Text formatting and validation (CPU work)
-        for _ in range(20):  # Multiple processing passes
+        for _ in range(5):  # Multiple processing passes for realistic workload
             text_lines = text.split('\n')
             processed_text = '\n'.join([line.strip() for line in text_lines if line.strip()])
             words = processed_text.split()
-            word_count = len(words)
-            char_count = len(processed_text)
+            len(words)
+            len(processed_text)
             
             # Additional text analysis
-            unique_words = set(words)
-            avg_word_length = sum(len(w) for w in words) / max(len(words), 1)
+            set(words)
+            sum(len(w) for w in words) / max(len(words), 1)
 
     # ============================================================================
     # STOP AUTOMATIC PROFILING

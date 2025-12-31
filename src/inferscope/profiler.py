@@ -228,36 +228,45 @@ class Profiler:
             torch.Tensor.to = hooked_tensor_to
             
             # Hook torch.cuda.synchronize() to measure actual GPU kernel timing
+            # Strategy: Use CUDA events to measure GPU-side execution time
             self._original_cuda_sync = torch.cuda.synchronize
-            self._last_gpu_sync_time = None
+            self._gpu_event_start = None
+            self._gpu_event_end = None
             
             def hooked_cuda_sync(*args, **kwargs):
-                """Capture GPU kernel timing by measuring time between synchronizations."""
-                import time
-                
-                # Measure time before sync
-                start_time_us = int(time.monotonic_ns() // 1000)
-                
-                # Perform the actual synchronization
-                result = profiler_ref._original_cuda_sync(*args, **kwargs)
-                
-                # Measure time after sync
-                end_time_us = int(time.monotonic_ns() // 1000)
-                
-                # Calculate GPU kernel duration
-                if profiler_ref._last_gpu_sync_time is not None:
-                    # Time elapsed since last sync = GPU kernel execution time
-                    gpu_duration_us = start_time_us - profiler_ref._last_gpu_sync_time
+                """Capture GPU kernel timing using CUDA events."""
+                try:
+                    # Create CUDA events for GPU-side timing
+                    if profiler_ref._gpu_event_start is None:
+                        profiler_ref._gpu_event_start = torch.cuda.Event(enable_timing=True)
+                    if profiler_ref._gpu_event_end is None:
+                        profiler_ref._gpu_event_end = torch.cuda.Event(enable_timing=True)
                     
-                    # Record the actual GPU kernel event with measured duration
-                    if profiler_ref.gpu and hasattr(profiler_ref.gpu, '_inject_kernel_event'):
-                        # Use the measured duration (not fixed 1000 μs)
-                        profiler_ref.gpu._inject_kernel_event('cuda_kernel', max(100, gpu_duration_us))
-                
-                # Update last sync time for next measurement
-                profiler_ref._last_gpu_sync_time = end_time_us
-                
-                return result
+                    # Record start event
+                    profiler_ref._gpu_event_start.record()
+                    
+                    # Perform the actual synchronization
+                    result = profiler_ref._original_cuda_sync(*args, **kwargs)
+                    
+                    # Record end event
+                    profiler_ref._gpu_event_end.record()
+                    
+                    # Synchronize to get elapsed time
+                    profiler_ref._gpu_event_end.synchronize()
+                    gpu_duration_ms = profiler_ref._gpu_event_start.elapsed_time(profiler_ref._gpu_event_end)
+                    gpu_duration_us = int(gpu_duration_ms * 1000)
+                    
+                    # Record GPU kernel event
+                    if gpu_duration_us > 0:
+                        if profiler_ref.gpu and hasattr(profiler_ref.gpu, '_inject_kernel_event'):
+                            profiler_ref.gpu._inject_kernel_event('gpu_kernel', max(1, gpu_duration_us))
+                    
+                    return result
+                except Exception as e:
+                    # Fallback: just call original sync
+                    import logging
+                    logging.debug(f"GPU event timing failed: {e}")
+                    return profiler_ref._original_cuda_sync(*args, **kwargs)
             
             torch.cuda.synchronize = hooked_cuda_sync
             
