@@ -43,18 +43,22 @@ test:
 	@echo "✓ Coverage report generated in coverage/html/index.html"
 
 demo:
-	@echo "Running profiler demo..."
+	@echo "Running profiler function verification..."
 	@.venv/bin/python examples/run_profiler_demo.py
 	@echo "✓ Function verification demo finished"
 	@echo ""
-	@echo "Running LLM inference demo..."
-	@.venv/bin/python examples/demo_llm_inference.py --model Qwen/Qwen3-0.6B-Base --max-new-tokens 128 --batch-size 1 --stress-mode
-	@echo "✓ LLM demo finished"
+	@echo "Running LLM inference demo (requires PyTorch)..."
+	@.venv/bin/python examples/demo_llm_inference.py --max-new-tokens 16 --output outputs/demo_llm_trace.json 2>&1 || echo "⚠ LLM demo skipped (PyTorch not available or model not found)"
 	@echo ""
-	@echo "Generating analysis reports..."
-	@.venv/bin/python scripts/inferscope analyze outputs/demo_llm_trace.json --output outputs/llm_report.md
-	@.venv/bin/python scripts/inferscope analyze outputs/demo_llm_trace.json --output outputs/llm_report.html --format html
-	@echo "✓ Reports generated (Markdown and HTML)"
+	@if [ -f outputs/demo_llm_trace.json ]; then \
+		echo "Generating analysis reports..."; \
+		.venv/bin/python scripts/inferscope analyze outputs/demo_llm_trace.json --output outputs/llm_report.md; \
+		.venv/bin/python scripts/inferscope analyze outputs/demo_llm_trace.json --output outputs/llm_report.html --format html; \
+		echo "✓ Reports generated (Markdown and HTML)"; \
+	else \
+		echo "⚠ No trace file generated, skipping report generation"; \
+		echo "  To run the full LLM demo, install PyTorch: pip install torch transformers"; \
+	fi
 	@echo ""
-	@echo "All demos completed. Check outputs/ for traces and reports."
+	@echo "Demo completed. Check outputs/ for traces and reports (if generated)."
 

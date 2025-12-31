@@ -90,19 +90,36 @@ class ReportGenerator:
         h2d_time = summary.get('total_h2d_us', 0)
         d2h_time = summary.get('total_d2h_us', 0)
         
-        return [
+        # Calculate wall-clock coverage percentages (should not exceed 100%)
+        cpu_pct = 100 * cpu_time / end_to_end if end_to_end else 0
+        gpu_pct = 100 * gpu_time / end_to_end if end_to_end else 0
+        h2d_pct = 100 * h2d_time / end_to_end if end_to_end else 0
+        d2h_pct = 100 * d2h_time / end_to_end if end_to_end else 0
+        
+        lines = [
             "## Summary",
             "",
             f"**End-to-end latency:** {end_to_end / 1000:.1f} ms",
             "",
             "### Breakdown",
             "",
-            f"- CPU time: {cpu_time / 1000:.1f} ms ({100 * cpu_time / end_to_end if end_to_end else 0:.1f}%)",
-            f"- GPU time: {gpu_time / 1000:.1f} ms ({100 * gpu_time / end_to_end if end_to_end else 0:.1f}%)",
-            f"- H2D copy: {h2d_time / 1000:.1f} ms ({100 * h2d_time / end_to_end if end_to_end else 0:.1f}%)",
-            f"- D2H copy: {d2h_time / 1000:.1f} ms ({100 * d2h_time / end_to_end if end_to_end else 0:.1f}%)",
-            "",
         ]
+        
+        # Show absolute times and utilization percentages
+        if cpu_time > 0:
+            lines.append(f"- CPU time: {cpu_time / 1000:.1f} ms ({cpu_pct:.1f}%)")
+        
+        if gpu_time > 0:
+            lines.append(f"- GPU time: {gpu_time / 1000:.1f} ms ({gpu_pct:.1f}%)")
+        
+        if h2d_time > 0:
+            lines.append(f"- H2D copy: {h2d_time / 1000:.1f} ms ({h2d_pct:.1f}%)")
+        
+        if d2h_time > 0:
+            lines.append(f"- D2H copy: {d2h_time / 1000:.1f} ms ({d2h_pct:.1f}%)")
+        
+        lines.append("")
+        return lines
     
     def _markdown_bottleneck(self, bottleneck: Dict[str, Any]) -> List[str]:
         """Format bottleneck analysis section."""
@@ -150,9 +167,11 @@ class ReportGenerator:
             cat = item.get('category', 'unknown')
             duration_ms = item.get('duration_us', 0) / 1000
             pct = item.get('percentage', 0.0)
+            
             # Format category: gpu_compute -> GPU Compute, cpu_preprocessing -> CPU Preprocessing
             formatted_cat = cat.replace('gpu_', 'GPU ').replace('cpu_', 'CPU ').replace('h2d_', 'H2D ').replace('d2h_', 'D2H ').replace('_', ' ').title()
             formatted_cat = formatted_cat.replace('Gpu ', 'GPU ').replace('Cpu ', 'CPU ').replace('H2d ', 'H2D ').replace('D2h ', 'D2H ')
+            
             lines.append(f"| {formatted_cat} | {duration_ms:.1f} | {pct:.1f}% |")
         
         lines.append("")
@@ -193,15 +212,21 @@ class ReportGenerator:
         h2d_time = summary.get('total_h2d_us', 0)
         d2h_time = summary.get('total_d2h_us', 0)
         
+        # Calculate wall-clock coverage percentages
+        cpu_pct = 100 * cpu_time / end_to_end if end_to_end else 0
+        gpu_pct = 100 * gpu_time / end_to_end if end_to_end else 0
+        h2d_pct = 100 * h2d_time / end_to_end if end_to_end else 0
+        d2h_pct = 100 * d2h_time / end_to_end if end_to_end else 0
+        
         return f"""
         <h2>Summary</h2>
         <p><strong>End-to-end latency:</strong> {end_to_end / 1000:.1f} ms</p>
         <h3>Breakdown</h3>
         <ul>
-            <li>CPU time: {cpu_time / 1000:.1f} ms ({100 * cpu_time / end_to_end if end_to_end else 0:.1f}%)</li>
-            <li>GPU time: {gpu_time / 1000:.1f} ms ({100 * gpu_time / end_to_end if end_to_end else 0:.1f}%)</li>
-            <li>H2D copy: {h2d_time / 1000:.1f} ms ({100 * h2d_time / end_to_end if end_to_end else 0:.1f}%)</li>
-            <li>D2H copy: {d2h_time / 1000:.1f} ms ({100 * d2h_time / end_to_end if end_to_end else 0:.1f}%)</li>
+            <li>CPU time: {cpu_time / 1000:.1f} ms ({cpu_pct:.1f}%)</li>
+            <li>GPU time: {gpu_time / 1000:.1f} ms ({gpu_pct:.1f}%)</li>
+            <li>H2D copy: {h2d_time / 1000:.1f} ms ({h2d_pct:.1f}%)</li>
+            <li>D2H copy: {d2h_time / 1000:.1f} ms ({d2h_pct:.1f}%)</li>
         </ul>
         """
     

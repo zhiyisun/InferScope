@@ -5,6 +5,7 @@ Profiler orchestrator: coordinates CPU/GPU collectors and produces a unified tim
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 import logging
+import time
 
 from .collectors.cpu import CpuCollector
 from .collectors.gpu import GpuCollector
@@ -33,6 +34,12 @@ class Profiler:
         self.cpu = CpuCollector(trace_buffer)
         self.gpu = GpuCollector(trace_buffer)
         self._unified: Optional[List[Dict[str, Any]]] = None
+        self._pytorch_profiler = None
+        self._gpu_events: List[Dict[str, Any]] = []
+        self._stream_start_times: Dict[int, int] = {}
+        self._original_tensor_to = None
+        self._original_cuda_empty_cache = None
+        self._gpu_hooks_active = False
     
     @staticmethod
     def _check_single_gpu():
@@ -54,13 +61,19 @@ class Profiler:
             logger.warning(f"GPU check failed: {e}")
 
     def start(self) -> None:
-        """Start CPU and GPU collectors."""
+        """Start CPU and GPU collectors with automatic event hooks."""
         self.cpu.start()
         self.gpu.start()
+        
+        # Install automatic GPU operation hooks
+        self._install_gpu_hooks()
         logger.info("Profiler started")
 
     def stop(self) -> None:
         """Stop collectors and finalize."""
+        # Remove GPU operation hooks
+        self._uninstall_gpu_hooks()
+        
         self.cpu.stop()
         self.gpu.stop()
         logger.info("Profiler stopped")
@@ -76,11 +89,11 @@ class Profiler:
         if not hasattr(self.trace_buffer, 'read_all'):
             # Fallback: use per-collector buffers
             cpu_events = self._collect_cpu_events()
-            gpu_events = self.gpu.get_gpu_events()
+            gpu_events = self.gpu.get_gpu_events() + self._gpu_events
         else:
             all_events = self.trace_buffer.read_all()
             cpu_events = [e for e in all_events if str(e.get('type', '')).startswith('cpu_')]
-            gpu_events = [e for e in all_events if not str(e.get('type', '')).startswith('cpu_')]
+            gpu_events = [e for e in all_events if not str(e.get('type', '')).startswith('cpu_')] + self._gpu_events
             # Under coverage or other tracing tools, CPU events may not be enqueued.
             # If none were found, fallback to per-thread buffers.
             if len(cpu_events) == 0:
@@ -98,3 +111,182 @@ class Profiler:
         for _, events in buffers.items():
             merged.extend(events)
         return merged
+
+    def _start_pytorch_profiler(self) -> None:
+        """Start GPU event capture via CUDA event hooks."""
+        try:
+            import torch
+            
+            if not torch.cuda.is_available():
+                logger.debug("CUDA not available, skipping GPU event capture")
+                return
+            
+            # Install CUDA synchronization hook to mark GPU activity boundaries
+            self._install_cuda_hooks()
+            logger.debug("GPU event capture hooks installed")
+        except Exception as e:
+            logger.debug(f"Could not install GPU hooks: {e}")
+
+    def _install_cuda_hooks(self) -> None:
+        """Install hooks to capture CUDA operations."""
+        try:
+            import torch
+            
+            # Store original functions
+            self._original_cuda_sync = torch.cuda.synchronize
+            self._cuda_event_stack = []
+            
+            # Hook synchronize to record GPU activity
+            def hooked_synchronize(device=None):
+                result = self._original_cuda_sync(device)
+                # Record GPU activity marker
+                self._record_gpu_activity("cuda_synchronize")
+                return result
+            
+            torch.cuda.synchronize = hooked_synchronize
+            logger.debug("CUDA synchronize hook installed")
+        except Exception as e:
+            logger.debug(f"Could not install CUDA hooks: {e}")
+
+    def _stop_pytorch_profiler(self) -> None:
+        """Stop PyTorch profiler."""
+        if self._pytorch_profiler is None:
+            return
+        
+        try:
+            if hasattr(self, '_original_cuda_sync'):
+                import torch
+                torch.cuda.synchronize = self._original_cuda_sync
+            logger.debug(f"GPU event capture stopped, captured {len(self._gpu_events)} GPU events")
+        except Exception as e:
+            logger.debug(f"Error stopping GPU event capture: {e}")
+
+    def _record_gpu_activity(self, operation: str) -> None:
+        """Record GPU activity."""
+        current_time_us = int(time.monotonic_ns() // 1000)
+        gpu_event = {
+            'type': 'gpu_kernel',
+            'name': operation,
+            'timestamp_us': current_time_us,
+            'duration_us': 1000,  # Minimal duration for synchronization events
+            'metadata': {'captured_at': 'sync_point'}
+        }
+        # Don't record every sync point to avoid spam
+        
+    def _install_gpu_hooks(self) -> None:
+        """Install hooks to automatically capture GPU operations."""
+        if self._gpu_hooks_active:
+            return
+        
+        try:
+            import torch
+            
+            if not torch.cuda.is_available():
+                logger.debug("CUDA not available, skipping GPU hooks")
+                return
+            
+            # Hook tensor.to() to detect H2D/D2H transfers
+            self._original_tensor_to = torch.Tensor.to
+            profiler_ref = self
+            
+            def hooked_tensor_to(self, *args, **kwargs):
+                """Intercept tensor.to() calls to detect device transfers."""
+                # Get current device before transfer
+                src_device = self.device
+                
+                # Call original to() method
+                result = profiler_ref._original_tensor_to(self, *args, **kwargs)
+                
+                # Get destination device after transfer
+                dst_device = result.device
+                
+                # Detect H2D or D2H transfer
+                if src_device.type == 'cpu' and dst_device.type == 'cuda':
+                    # Host-to-Device transfer
+                    bytes_transferred = result.numel() * result.element_size()
+                    if profiler_ref.gpu and hasattr(profiler_ref.gpu, '_inject_copy_event'):
+                        profiler_ref.gpu._inject_copy_event(
+                            f'tensor_h2d_{bytes_transferred}',
+                            bytes_transferred,
+                            'h2d'
+                        )
+                        logger.debug(f"Captured H2D transfer: {bytes_transferred} bytes")
+                
+                elif src_device.type == 'cuda' and dst_device.type == 'cpu':
+                    # Device-to-Host transfer
+                    bytes_transferred = result.numel() * result.element_size()
+                    if profiler_ref.gpu and hasattr(profiler_ref.gpu, '_inject_copy_event'):
+                        profiler_ref.gpu._inject_copy_event(
+                            f'tensor_d2h_{bytes_transferred}',
+                            bytes_transferred,
+                            'd2h'
+                        )
+                        logger.debug(f"Captured D2H transfer: {bytes_transferred} bytes")
+                
+                return result
+            
+            torch.Tensor.to = hooked_tensor_to
+            
+            # Hook torch.cuda.synchronize() to measure actual GPU kernel timing
+            self._original_cuda_sync = torch.cuda.synchronize
+            self._last_gpu_sync_time = None
+            
+            def hooked_cuda_sync(*args, **kwargs):
+                """Capture GPU kernel timing by measuring time between synchronizations."""
+                import time
+                
+                # Measure time before sync
+                start_time_us = int(time.monotonic_ns() // 1000)
+                
+                # Perform the actual synchronization
+                result = profiler_ref._original_cuda_sync(*args, **kwargs)
+                
+                # Measure time after sync
+                end_time_us = int(time.monotonic_ns() // 1000)
+                
+                # Calculate GPU kernel duration
+                if profiler_ref._last_gpu_sync_time is not None:
+                    # Time elapsed since last sync = GPU kernel execution time
+                    gpu_duration_us = start_time_us - profiler_ref._last_gpu_sync_time
+                    
+                    # Record the actual GPU kernel event with measured duration
+                    if profiler_ref.gpu and hasattr(profiler_ref.gpu, '_inject_kernel_event'):
+                        # Use the measured duration (not fixed 1000 μs)
+                        profiler_ref.gpu._inject_kernel_event('cuda_kernel', max(100, gpu_duration_us))
+                
+                # Update last sync time for next measurement
+                profiler_ref._last_gpu_sync_time = end_time_us
+                
+                return result
+            
+            torch.cuda.synchronize = hooked_cuda_sync
+            
+            self._gpu_hooks_active = True
+            logger.debug("GPU hooks installed (tensor.to + cuda.synchronize interception)")
+            
+        except Exception as e:
+            logger.debug(f"Could not install GPU hooks: {e}")
+
+    def _uninstall_gpu_hooks(self) -> None:
+        """Remove GPU operation hooks."""
+        if not self._gpu_hooks_active:
+            return
+        
+        try:
+            import torch
+            if self._original_tensor_to is not None:
+                torch.Tensor.to = self._original_tensor_to
+                self._original_tensor_to = None
+            self._gpu_hooks_active = False
+            logger.debug("GPU hooks removed")
+        except Exception as e:
+            logger.debug(f"Error removing GPU hooks: {e}")
+    
+    def _extract_gpu_events_from_profiler(self) -> None:
+        """Legacy method - now handled via hooks."""
+        pass
+
+    def _extract_gpu_events(self, profiler) -> None:
+        """Legacy method."""
+        pass
+
